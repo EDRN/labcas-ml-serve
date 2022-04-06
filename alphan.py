@@ -13,161 +13,139 @@ from skimage.morphology import remove_small_objects
 import os
 import numpy as np
 from keras.models import load_model
+from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
+import logging
+
+def get_logger(log_path):
+    logger=logging.getLogger()
+    logger.setLevel(logging.INFO)
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    if not logger.hasHandlers():
+        fh = logging.FileHandler(log_path + '.log')
+        logger.addHandler(fh)
+    return logger
 
 app = FastAPI()
 
-def custom_openapi():
-    """
-    ref: https://fastapi.tiangolo.com/advanced/extending-openapi/
-    """
-    if app.openapi_schema:
-        return app.openapi_schema
-    openapi_schema = get_openapi(
-        title="Alphan's LABCAS Predictor",
-        version="1.0.0",
-        description="This is the docs for Alphan's LABCAS predictor",
-        routes=app.routes,
-    )
-    # do changes:
-    openapi_schema["paths"]["/predict"]['get']['parameters'][0]['examples']={
-        'example1': {'value': '8_1.png'},
-        'example2': {'value': '46_1.png'}
-    }
-    openapi_schema["paths"]["/predict"]['get']['parameters'][0]['description']="Give the LABCAS ID to the resource"
+# def custom_openapi():
+#     """
+#     ref: https://fastapi.tiangolo.com/advanced/extending-openapi/
+#     """
+#     if app.openapi_schema:
+#         return app.openapi_schema
+#     openapi_schema = get_openapi(
+#         title="Alphan's LABCAS Predictor",
+#         version="1.0.0",
+#         description="This is the docs for Alphan's LABCAS predictor",
+#         routes=app.routes,
+#     )
+#     # do changes:
+#     openapi_schema["paths"]["/predict"]['get']['parameters'][0]['examples']={
+#         'example1': {'value': '8_1.png'},
+#         'example2': {'value': '46_1.png'}
+#     }
+#     openapi_schema["paths"]["/predict"]['get']['parameters'][0]['description']="Give the LABCAS ID to the resource"
+#
+#     openapi_schema["paths"]["/predict"]['get']['parameters'][1]['description'] = "Pre-processing step for background removal"
+#     openapi_schema["paths"]["/predict"]['get']['parameters'][1]['examples'] = {
+#         'example1': {'value': 'True'},
+#         'example2': {'value': 'False'}
+#     }
+#     openapi_schema["paths"]["/predict"]['get']['parameters'][2]['description'] = "Pre-processing step to include the rolling_ball algorithm"
+#     openapi_schema["paths"]["/predict"]['get']['parameters'][2]['examples'] = {
+#         'example1': {'value': 'True'},
+#         'example2': {'value': 'False'}
+#     }
+#     openapi_schema["paths"]["/predict"]['get']['parameters'][3]['description'] = "Chose the DNN model to do the prediction"
+#     openapi_schema["paths"]["/predict"]['get']['parameters'][3]['examples'] = {
+#         'example1': {'value': 'unet'},
+#         'example2': {'value': 'bgnet'}
+#     }
+#     openapi_schema["paths"]["/predict"]['get']['parameters'][4][
+#         'description'] = "Post-processing step to include Spur removal from the prediction"
+#     openapi_schema["paths"]["/predict"]['get']['parameters'][4]['examples'] = {
+#         'example1': {'value': 'remove_spur'},
+#         'example2': {'value': 'None'}
+#     }
+#     app.openapi_schema = openapi_schema
+#     return app.openapi_schema
+#
+#
+# app.openapi = custom_openapi
 
-    openapi_schema["paths"]["/predict"]['get']['parameters'][1]['description'] = "Pre-processing step for background removal"
-    openapi_schema["paths"]["/predict"]['get']['parameters'][1]['examples'] = {
-        'example1': {'value': 'True'},
-        'example2': {'value': 'False'}
-    }
-    openapi_schema["paths"]["/predict"]['get']['parameters'][2]['description'] = "Pre-processing step to include the rolling_ball algorithm"
-    openapi_schema["paths"]["/predict"]['get']['parameters'][2]['examples'] = {
-        'example1': {'value': 'True'},
-        'example2': {'value': 'False'}
-    }
-    openapi_schema["paths"]["/predict"]['get']['parameters'][3]['description'] = "Chose the DNN model to do the prediction"
-    openapi_schema["paths"]["/predict"]['get']['parameters'][3]['examples'] = {
-        'example1': {'value': 'unet'},
-        'example2': {'value': 'bgnet'}
-    }
-    openapi_schema["paths"]["/predict"]['get']['parameters'][4][
-        'description'] = "Post-processing step to include Spur removal from the prediction"
-    openapi_schema["paths"]["/predict"]['get']['parameters'][4]['examples'] = {
-        'example1': {'value': 'remove_spur'},
-        'example2': {'value': 'None'}
-    }
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema
+root_dir='models/alphan'
 
-
-app.openapi = custom_openapi
-
-def remove_bg(x):
-    bg = rolling_ball(x)
-    return rescale_intensity(1.0 * (x - bg))
-
-def remove_bg_gauss(x, sigma):
-    imf = img_as_float(x)
-    img = gaussian(imf, sigma=sigma)
-    return rescale_intensity(1.0 * img_as_ubyte(imf - img))
-
+@serve.deployment(ray_actor_options={"num_cpus": 0}, num_replicas=2)
 def remove_spur(im):
     im = remove_small_objects(im, 64)
     return im
 
-@serve.deployment
-class Background_removal:
-    def __init__(self):
-        pass
+@serve.deployment(ray_actor_options={"num_cpus": 0}, num_replicas=2)
+def remove_bg(x):
+    bg = rolling_ball(x)
+    bg_removed=rescale_intensity(1.0 * (x - bg))
+    return bg_removed
 
-    def __call__(self, img: np.ndarray):
-        img = remove_bg_gauss(img, sigma=15)
-        return img
+@serve.deployment(ray_actor_options={"num_cpus": 0}, num_replicas=2)
+def remove_bg_gauss(x, sigma):
+    imf = img_as_float(x)
+    img = gaussian(imf, sigma=sigma)
+    removed=rescale_intensity(1.0 * img_as_ubyte(imf - img))
+    return removed
 
-@serve.deployment
-class Rolling_ball:
-    def __init__(self):
-        pass
+@serve.deployment(ray_actor_options={"num_cpus": 0}, num_replicas=2)
+def bgnet(model, img: np.ndarray):
+    os.environ["OMP_NUM_THREADS"] = '1' # https://docs.ray.io/en/latest/serve/core-apis.html#serve-cpus-gpus
+    p = model.predict(img)
+    return p
 
-    def __call__(self, img: np.ndarray):
-        img = remove_bg(img)
-        return img
+@serve.deployment(ray_actor_options={"num_cpus":0}, num_replicas=2)
+def unet(model, img: np.ndarray):
+    os.environ["OMP_NUM_THREADS"] = '1'
+    p = model.predict(img)
+    return p
 
-@serve.deployment
-class Remove_spur:
-    def __init__(self):
-        pass
-
-    def __call__(self, img: np.ndarray):
-        img = remove_bg(img)
-        return img
-
-@serve.deployment
-class Bgnet:
-    def __init__(self):
-        self.root_dir = 'models/alphan'
-        self.model = load_model(os.path.join(self.root_dir, 'unet_model_bg_gauss25.h5'))
-
-    def __call__(self, img: np.ndarray):
-        p = self.model.predict(img)
-        # p = img
-        return p
-
-@serve.deployment
-class Unet:
-  def __init__(self):
-      self.root_dir='models/alphan'
-      self.model= load_model(os.path.join(self.root_dir, 'unet_model.h5'))
-
-  def __call__(self, img: np.ndarray):
-      p = self.model.predict(img)
-      # p = img
-      return p
-
-@serve.deployment
+@serve.deployment(ray_actor_options={"num_cpus": 0}, num_replicas=2)
 @serve.ingress(app)
 class Alphan:
     def __init__(self):
-        self.count = 0
         self.accepted_formats = ['png', 'tif', 'tiff']
-        self.root_dir = 'models/alphan'
-        self.background_removal=Background_removal.get_handle()
-        self.rolling_ball = Rolling_ball.get_handle()
-        self.remove_spur = Remove_spur.get_handle()
-        self.unet = Unet.get_handle()
-        self.bgnet = Bgnet.get_handle()
-
+        self.logger=get_logger(root_dir)
+        self.unet_model=ray.put(load_model(os.path.join(root_dir, 'unet_model.h5')))
+        self.bgnet_model = ray.put(load_model(os.path.join(root_dir, 'unet_model_bg_gauss25.h5')))
+        self.logger.info('models loaded')
 
     @app.get("/predict", name="", summary="This endpoint predicts neuclei boundries in an image.")
-    async def predict(self, resource_name: str, background_removal: str = 'False', rolling_ball: str = 'False', model: str = 'unet',
+    async def predict(self, resource_name: str, remove_background: str = 'False', apply_rolling_ball: str = 'False', model_name: str = 'unet',
             postprocess: str = 'remove_spur'):
 
-        file_path = os.path.join(self.root_dir, 'dummy_data', resource_name)
+        file_path = os.path.join(root_dir, 'dummy_data', resource_name)
 
         img = imread(file_path)
 
-        if background_removal=='True':
-            img = await self.background_removal.remote(img=img)
+        if remove_background=='True':
+            img = await remove_bg_gauss.get_handle().remote(img=img)
 
-        if rolling_ball=='True':
-            img = await self.rolling_ball.remote(img=img)
+        if apply_rolling_ball=='True':
+            img = await remove_bg.get_handle().remote(img=img)
 
         img = rescale_intensity(1.0 * img)
         img = np.expand_dims(img, axis=[0, 3])
 
-        if model == 'unet':
-            p = await self.unet.remote(img)
-        elif model == 'bgnet':
-            p = await self.bgnet.remote(img)
+        if model_name == 'unet':
+            p = await unet.get_handle().remote(self.unet_model, img)
+        elif model_name == 'bgnet':
+            p = await bgnet.get_handle().remote(self.bgnet_model, img)
         else:
-            print('ERROR:', model, 'not available!')
+            print('ERROR:', model_name, 'not available!')
             raise NotImplemented
 
         p = p[0, :, :, 0]
         b = p > 0.25
 
         if postprocess == 'remove_spur':
-            b = await self.remove_spur.remote(b)
+            b = await remove_spur.get_handle().remote(b)
 
         imsave(file_path.replace('.png', '_out_bw.png'), img_as_ubyte(b))
         img = np.squeeze(img)
@@ -180,29 +158,17 @@ class Alphan:
         imsave(file_path.replace('.png', '_out_rgb.png'), rgb)
         return {"status:", "the result file was generated at: " + os.path.dirname(file_path)}
 
-ray.init(address="auto", namespace="serve")
-Background_removal.deploy()
-Remove_spur.deploy()
-Rolling_ball.deploy()
-Unet.deploy()
-Bgnet.deploy()
-Alphan.deploy()
+if __name__ == "__main__":
+    ray.init(address='127.0.0.1:6378', namespace="serve")
+    ray.serve.start(detached=True, http_options={"port": 8080, "middlewares": [
+        Middleware(
+            CORSMiddleware, allow_origins=["*"], allow_methods=["*"])
+    ]})
+    remove_spur.deploy()
+    remove_bg.deploy()
+    remove_bg_gauss.deploy()
+    remove_bg_gauss.deploy()
+    bgnet.deploy()
+    unet.deploy()
+    Alphan.deploy()
 
-"""
-STEPS to run:
-
-1. Start local Ray cluster:
->> ray start --head 
-2. Start Serve on the local Ray cluster.
->> serve start 
-3. Run this script
-
-ref: https://docs.ray.io/en/latest/serve/deployment.html
-"""
-
-
-"""
-TODO: 
-1. Create a new virtual env (maybe in a docker using this: https://stackoverflow.com/questions/24319662/from-inside-of-a-docker-container-how-do-i-connect-to-the-localhost-of-the-mach) and deploy some workers from there
-2. Convert Alphan's code into new tensorflow 
-    """
