@@ -1,11 +1,8 @@
-import ray
 from fastapi import FastAPI
 from ray import serve
 from pydantic import BaseModel, Field
 from typing import Optional
 from fastapi.openapi.utils import get_openapi
-from starlette.middleware import Middleware
-from starlette.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
@@ -61,19 +58,7 @@ class Counter_1:
       self.count -= by
       return {"count": self.count}
 
-"""
-make sure the Ray Cluster is running:
-source <path to python 3.7.8 venv/bin/python>
-ray start --head  --port 6378 
-"""
 
-# This will connect to the running Ray cluster.
-ray.init(address='127.0.0.1:6378', namespace="serve_3_7_8")
-ray.serve.start(detached=True, http_options={"port": 8080, "middlewares": [
-        Middleware(
-            CORSMiddleware, allow_origins=["*"], allow_methods=["*"])
-    ]})
-Counter_1.deploy()
 
 """
 Notes :-
@@ -104,6 +89,11 @@ Notes :-
 Todo:
 - Implement autoscaling
 - write a multi node + pyenv deployment script
+- find out about shared memory:
+    - https://stackoverflow.com/questions/66024264/any-python-api-to-get-the-remaining-memory-of-plasma   
+    - how does ray automatically store stuff into plasma!: there was a video
+    - have multiple memories in multiple deployments and see if caching is applied 
+    - try the program from the researher and see if that automatically puts something into shared memory
 
 Q1. I want to eagerly load all my tensorflow models in the object store using ".put" and let us assume that together they take more memory than available in 
 the object store and hence some of them spill to the disk? Is there a better way of loading models in ray serve, which at any time maintains the most recently used models into memory and rest can be spilled?

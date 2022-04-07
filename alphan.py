@@ -95,25 +95,37 @@ def remove_bg_gauss(x, sigma):
     return removed
 
 @serve.deployment(ray_actor_options={"num_cpus": 0}, num_replicas=2)
-def bgnet(model, img: np.ndarray):
-    os.environ["OMP_NUM_THREADS"] = '1' # https://docs.ray.io/en/latest/serve/core-apis.html#serve-cpus-gpus
-    p = model.predict(img)
-    return p
+class Bgnet:
+    def __init__(self):
+        self.model = load_model(os.path.join(root_dir, 'unet_model_bg_gauss25.h5'))
+        self.logger=get_logger(root_dir+'Bgnet')
+        self.logger.info('model loaded')
+
+    def predict(self, img: np.ndarray):
+        os.environ["OMP_NUM_THREADS"] = '1' # https://docs.ray.io/en/latest/serve/core-apis.html#serve-cpus-gpus
+        p = self.model.predict(img)
+        return p
 
 @serve.deployment(ray_actor_options={"num_cpus":0}, num_replicas=2)
-def unet(model, img: np.ndarray):
-    os.environ["OMP_NUM_THREADS"] = '1'
-    p = model.predict(img)
-    return p
+class Unet:
+    def __init__(self):
+        self.model = load_model(os.path.join(root_dir, 'unet_model.h5'))
+        self.logger = get_logger(root_dir + 'Unet')
+        self.logger.info('model loaded')
 
-@serve.deployment(ray_actor_options={"num_cpus": 0}, num_replicas=2)
+    def predict(self, img: np.ndarray):
+        os.environ["OMP_NUM_THREADS"] = '1'
+        p = self.model.predict(img)
+        return p
+
+@serve.deployment(ray_actor_options={"num_cpus": 0}, num_replicas=1)
 @serve.ingress(app)
 class Alphan:
     def __init__(self):
         self.accepted_formats = ['png', 'tif', 'tiff']
-        self.logger=get_logger(root_dir)
-        self.unet_model=ray.put(load_model(os.path.join(root_dir, 'unet_model.h5')))
-        self.bgnet_model = ray.put(load_model(os.path.join(root_dir, 'unet_model_bg_gauss25.h5')))
+        self.logger=get_logger(root_dir+'Alphan')
+        # self.unet_model=ray.put(load_model(os.path.join(root_dir, 'unet_model.h5')))
+        # self.bgnet_model = ray.put(load_model(os.path.join(root_dir, 'unet_model_bg_gauss25.h5')))
         self.logger.info('models loaded')
 
     @app.get("/predict", name="", summary="This endpoint predicts neuclei boundries in an image.")
@@ -134,9 +146,9 @@ class Alphan:
         img = np.expand_dims(img, axis=[0, 3])
 
         if model_name == 'unet':
-            p = await unet.get_handle().remote(self.unet_model, img)
+            p = await Unet.get_handle().predict.remote(img)
         elif model_name == 'bgnet':
-            p = await bgnet.get_handle().remote(self.bgnet_model, img)
+            p = await Bgnet.get_handle().predict.remote(img)
         else:
             print('ERROR:', model_name, 'not available!')
             raise NotImplemented
@@ -160,6 +172,7 @@ class Alphan:
 
 if __name__ == "__main__":
     ray.init(address='127.0.0.1:6378', namespace="serve")
+    print('available resources for this node:', ray.available_resources())
     ray.serve.start(detached=True, http_options={"port": 8080, "middlewares": [
         Middleware(
             CORSMiddleware, allow_origins=["*"], allow_methods=["*"])
@@ -168,7 +181,7 @@ if __name__ == "__main__":
     remove_bg.deploy()
     remove_bg_gauss.deploy()
     remove_bg_gauss.deploy()
-    bgnet.deploy()
-    unet.deploy()
+    Bgnet.deploy()
+    Unet.deploy()
     Alphan.deploy()
 

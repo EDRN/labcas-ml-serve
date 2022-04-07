@@ -2,7 +2,7 @@ import asyncio
 import aiohttp
 
 async def get(session: aiohttp.ClientSession, **kwargs) -> dict:
-    url = "http://127.0.0.1:8080/Alphan/predict"
+    url = "http://127.0.0.1:8080/Orchestrator/predict"
     print(f"Requesting {url}")
     resp = await session.request('GET', url=url, **kwargs)
     data = await resp.json()
@@ -25,4 +25,7 @@ async def main(**kwargs):
 
 
 if __name__ == '__main__':
+    import datetime
+    start=datetime.datetime.now()
     asyncio.run(main())
+    print('time taken:', datetime.datetime.now()- start)

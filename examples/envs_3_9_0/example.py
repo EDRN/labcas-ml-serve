@@ -47,11 +47,12 @@ source <path to python 3.9.0 venv/bin/python>
 ray start --head  --port 6379 
 """
 
-# # This will connect to the running Ray cluster.
-ray.init(address='127.0.0.1:6379', namespace="serve_3_9_0")
-ray.serve.start(detached=True, http_options={"port": 8081, "middlewares": [
-        Middleware(
-            CORSMiddleware, allow_origins=["*"], allow_methods=["*"])
-    ]})
-Counter.deploy()
+# # # This will connect to the running Ray cluster.
+# ray.init(address='127.0.0.1:6379', namespace="serve")
+# print('resources:', ray.available_resources())
+# ray.serve.start(detached=True, http_options={"port": 8081, "middlewares": [
+#         Middleware(
+#             CORSMiddleware, allow_origins=["*"], allow_methods=["*"])
+#     ]})
+# Counter.deploy()
 
