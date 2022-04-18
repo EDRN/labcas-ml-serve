@@ -65,19 +65,14 @@ Notes :-
 - use tasks/functions instead of actors/classes, unless statefulness is needed, because out of the 16 (=number of cpus) workers/processes that ray starts,
     the actors own a worker process and tasks do not and tasks are run from the pool and then the worker is reused!
 - (NOP) we do not need to transfer serialized objects to maybe we CAN use multiple python versions!
-- use SSH tunneling to connect ray in my local and labcas machine!
-- create a deployment script in python using popen
 - create a cluster using your laptop and labcas and work with multiple clusters in the same python programm
 	https://docs.ray.io/en/latest/cluster/ray-client.html
 	https://docs.ray.io/en/latest/cluster/cloud.html
 - what is the meaning of 0 CPUS?
     - this just serves as a directive for scheduller, that to start this function, it needs there resources,
         but if 0 then it is up to the actor itself how much resources it uses!
-- what happens if I have more models than object memory, will the most recent ones be in cache!
 - I want to specify that a function needs this many cpus to give directive to a function, but I still want to start many replicas for it!
-- each replica runs a single parallel worker
 - maybe keep only one actor to put all the large objects and keep all the references! 
-- read more what is replicas
 - more on async:
     https://medium.com/distributed-computing-with-ray/scaling-python-asyncio-with-ray-aaf42ee03a8e
     https://realpython.com/async-io-python/
@@ -91,15 +86,18 @@ Todo:
 - write a multi node + pyenv deployment script
 - find out about shared memory:
     - https://stackoverflow.com/questions/66024264/any-python-api-to-get-the-remaining-memory-of-plasma   
-    - how does ray automatically store stuff into plasma!: there was a video
-    - have multiple memories in multiple deployments and see if caching is applied 
-    - try the program from the researher and see if that automatically puts something into shared memory
+    - have multiple sized memories in multiple deployments and see if caching is applied 
+    - try the program from the researcher and see if that automatically puts something into shared memory
 
 Q1. I want to eagerly load all my tensorflow models in the object store using ".put" and let us assume that together they take more memory than available in 
 the object store and hence some of them spill to the disk? Is there a better way of loading models in ray serve, which at any time maintains the most recently used models into memory and rest can be spilled?
 Q2. Can I do the same with autoscaling for replicas!
     - I can currently achieve this using cpus:0 and then creating the max number of replicas, but this does not make sure it uses autoscaling features properly 
     in ray 
+
+increasing the number of replicas based on load can be done by adding another layer for scaling out by updating the config:
+https://docs.ray.io/en/releases-1.2.0/serve/advanced.html
+autoscaling automatically adds new nodes, if this needs to be done incrementally even for local machines, we need to create fake cluster and fake nodes!
 
 to check dashboard:
 http://localhost:8265/

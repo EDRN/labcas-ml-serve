@@ -71,7 +71,7 @@ class Alphan:
         return {"status": r}
 
 if __name__ == "__main__":
-    ray.init(address='127.0.0.1:6378', namespace="serve")
+    cli=ray.init(address='127.0.0.1:6378', namespace="serve")
     ray.serve.start(detached=True, http_options={"port": 8080, "middlewares": [
         Middleware(
             CORSMiddleware, allow_origins=["*"], allow_methods=["*"])

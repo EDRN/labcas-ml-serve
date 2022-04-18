@@ -8,7 +8,7 @@ deployments_info={
             'namespace': 'serve',
             'serve_port': '8080',
             'deployer': '/Users/asitangmishra/PycharmProjects/labcas-ml-serve/examples/envs_3_7_8/deployer.py',
-            'penv': '/Users/asitangmishra/PycharmProjects/alpha_n/venv/bin',
+            'penv': '/root/.pyenv/versions/3.7.8/bin', # '/Users/asitangmishra/PycharmProjects/alpha_n/venv/bin',
             'object_store_memory': '500000000',  # 500 MB
             'dashboard-port': '8265'
             },

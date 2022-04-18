@@ -171,12 +171,19 @@ class Alphan:
         return {"status:", "the result file was generated at: " + os.path.dirname(file_path)}
 
 if __name__ == "__main__":
-    ray.init(address='127.0.0.1:6378', namespace="serve")
-    print('available resources for this node:', ray.available_resources())
-    ray.serve.start(detached=True, http_options={"port": 8080, "middlewares": [
+
+    from ray_start import environments_info
+
+    environment_name = 'environment_A'
+    environment_info = environments_info[environment_name]
+
+    ray.init(address=environment_info['ip'] + ':' + environment_info['port'], namespace=environment_info['namespace'])
+    print('resources:', ray.available_resources())
+    ray.serve.start(detached=True, http_options={"port": environment_info['serve_port'], "middlewares": [
         Middleware(
             CORSMiddleware, allow_origins=["*"], allow_methods=["*"])
     ]})
+
     remove_spur.deploy()
     remove_bg.deploy()
     remove_bg_gauss.deploy()
