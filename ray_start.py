@@ -1,35 +1,42 @@
 import os
 
 environments_info={
-
     "environment_A":
             {'ip': '127.0.0.1',
             'port': '6378',
             'namespace': 'serve',
             'serve_port': '8080',
-            'deployer': '/usr/src/app/alphan.py', # '/Users/asitangmishra/PycharmProjects/labcas-ml-serve/examples/envs_3_7_8/deployer.py',
-            'penv': '/root/.pyenv/versions/environment_A/bin', # '/Users/asitangmishra/PycharmProjects/alpha_n/venv/bin',
+            'deployments': ['/usr/src/app/alphan.py', '/usr/src/app/auto_scaler.py'], # '/Users/asitangmishra/PycharmProjects/labcas-ml-serve/examples/envs_3_7_8/deployer.py',
+            'pyenv': '/root/.pyenv/versions/environment_A/bin', # '/Users/asitangmishra/PycharmProjects/alpha_n/venv/bin',
             'object_store_memory': '500000000',  # 500 MB
+            'num_cpus': '4',
             'dashboard-port': '8265'
             }
-
 }
 
 
-def do_deployments(head=False):
+def create_environments(head=False):
     for environment_name, environment_info in environments_info.items():
-        os.system( ". "+os.path.join(environment_info['penv'], 'activate')+ # Ref: https://unix.stackexchange.com/questions/246813/unable-to-use-source-command-within-python-script
-                     " && ray start  --port "+environment_info['port']+" --object-store-memory "+environment_info['object_store_memory']+
-                     " --head" if head else ""+
-                     " && python "+environment_info['deployer'])
+        command= ". "+os.path.join(environment_info['pyenv'], 'activate')+\
+                     " && ray start" +\
+                 " --port "+environment_info['port']+\
+                 " --object-store-memory "+environment_info['object_store_memory']+\
+                 " --num-cpus "+environment_info['num_cpus']+\
+                     (" --head" if head else "")+\
+                    "".join([" && python "+deployment for deployment in environment_info['deployments']])
+
+        # Ref: https://unix.stackexchange.com/questions/246813/unable-to-use-source-command-within-python-script
+        print('RUNNING on shell:', command)
+        os.system(command)
 
 
-def kill_deployments():
+def kill_environments():
     for environment_name, environment_info in environments_info.items():
-        os.system( ". "+os.path.join(environment_info['penv'], 'activate')+
-                     " && ray stop")
-
+        command=". "+os.path.join(environment_info['pyenv'], 'activate')+\
+                     " && ray stop"
+        print('RUNNING on shell:', command)
+        os.system(command)
 
 if __name__ == "__main__":
-    kill_deployments()
-    do_deployments(head=True)
+    kill_environments()
+    create_environments(head=True)

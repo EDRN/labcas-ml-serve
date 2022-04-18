@@ -13,8 +13,6 @@ from skimage.morphology import remove_small_objects
 import os
 import numpy as np
 from keras.models import load_model
-from starlette.middleware import Middleware
-from starlette.middleware.cors import CORSMiddleware
 import logging
 
 def get_logger(log_path):
@@ -94,7 +92,7 @@ def remove_bg_gauss(x, sigma):
     removed=rescale_intensity(1.0 * img_as_ubyte(imf - img))
     return removed
 
-@serve.deployment(ray_actor_options={"num_cpus": 0}, num_replicas=2)
+@serve.deployment(ray_actor_options={"num_cpus": 1}, num_replicas=2)
 class Bgnet:
     def __init__(self):
         self.model = load_model(os.path.join(root_dir, 'unet_model_bg_gauss25.h5'))
@@ -106,7 +104,7 @@ class Bgnet:
         p = self.model.predict(img)
         return p
 
-@serve.deployment(ray_actor_options={"num_cpus":0}, num_replicas=2)
+@serve.deployment(ray_actor_options={"num_cpus": 1}, num_replicas=2)
 class Unet:
     def __init__(self):
         self.model = load_model(os.path.join(root_dir, 'unet_model.h5'))
@@ -171,19 +169,8 @@ class Alphan:
         return {"status:", "the result file was generated at: " + os.path.dirname(file_path)}
 
 if __name__ == "__main__":
-
-    from ray_start import environments_info
-
-    environment_name = 'environment_A'
-    environment_info = environments_info[environment_name]
-
-    ray.init(address=environment_info['ip'] + ':' + environment_info['port'], namespace=environment_info['namespace'])
-    print('resources:', ray.available_resources())
-    ray.serve.start(detached=True, http_options={"port": environment_info['serve_port'], "middlewares": [
-        Middleware(
-            CORSMiddleware, allow_origins=["*"], allow_methods=["*"])
-    ]})
-
+    from ray_utils import init_deployment
+    init_deployment('environment_A')
     remove_spur.deploy()
     remove_bg.deploy()
     remove_bg_gauss.deploy()
