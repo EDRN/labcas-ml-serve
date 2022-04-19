@@ -1,6 +1,7 @@
 from ray import serve
 import os
 import logging
+import math
 
 def get_logger(log_path):
     logger=logging.getLogger()
@@ -13,24 +14,26 @@ def get_logger(log_path):
 
 root_dir='models'
 
-class Auto_Scaler:
-    def __init__(self):
-        self.current_requests = {}
+class auto_scaler:
+    def __init__(self, deployment_config):
+        # convert the deployment_config into a lookable format by the deployment name
+        self.deployment_config = {v['name']: v for v in deployment_config['deployments']}
+        self.current_requests = {} # todo: instead of this, use rate
         self.logger=get_logger(os.path.join(root_dir, 'auto_scale'))
+        self.current_replicas={}
 
     def update_current_requests(self, deployment_name):
         if deployment_name not in self.current_requests.keys():
             self.current_requests[deployment_name]=0
         self.current_requests[deployment_name]+=1
         self.logger.info('requests:'+str(self.current_requests))
-        if self.current_requests[deployment_name]>6:
-            num_replicas=4
-            if serve.get_deployment(deployment_name).num_replicas<num_replicas:
-                self.logger.info('redeploying '+deployment_name + ' to num replicas: '+str(num_replicas))
-                serve.get_deployment(deployment_name).options(num_replicas=num_replicas).deploy()
+        # todo: the below will now represent the current replicas once we redeploy, manually keep track
+        current_replicas=serve.get_deployment(deployment_name).num_replicas
+        if current_replicas < self.deployment_config[deployment_name]['max_replicas']:
+            # calculate how many replicas we should have right now
+            target_replicas=math.ceil(float(self.current_requests[deployment_name])/self.deployment_config[deployment_name]['target_num_ongoing_requests_per_replica'])
+            if target_replicas > current_replicas:
+                self.logger.info('redeploying '+deployment_name + ' to more replicas: '+str(current_replicas)+'-->'+str(target_replicas))
+            serve.get_deployment(deployment_name).options(num_replicas=target_replicas).deploy()
 
-if __name__ == "__main__":
-    from ray_utils import init_deployment
-    init_deployment('environment_A')
-    serve.deployment(Auto_Scaler).options(name='autoscaler', ray_actor_options={"num_cpus": 0}, num_replicas=1).deploy()
-
+            # todo: write down the code for scale down

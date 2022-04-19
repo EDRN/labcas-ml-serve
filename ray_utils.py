@@ -1,11 +1,12 @@
 import ray
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
-from ray_start import environments_info
+from ray import serve
+import os
 
-def init_deployment(environment_name):
+def init_get_environment(environment_name, environments_config):
 
-    environment_info = environments_info[environment_name]
+    environment_info = environments_config[environment_name]
 
     ray.init(address=environment_info['ip'] + ':' + environment_info['port'], namespace=environment_info['namespace'])
     print('resources:', ray.available_resources())
@@ -14,3 +15,47 @@ def init_deployment(environment_name):
             CORSMiddleware, allow_origins=["*"], allow_methods=["*"])
     ]})
 
+
+def deploy(environments_config, deployment_config, class_name_mappings):
+    init_get_environment(deployment_config['environment_name'], environments_config)
+    for deployment_info in deployment_config['deployments']:
+        ray_deployment=serve.deployment(class_name_mappings[deployment_info['name']]).options(name=deployment_info['name'],
+                                                                ray_actor_options={
+                                                                    "num_cpus": deployment_info['num_cpus']},
+                                                                version="1",
+                                                                num_replicas=deployment_info['num_replicas_base'],
+                                                                _autoscaling_config={
+                                                                    'target_num_ongoing_requests_per_replica':
+                                                                        deployment_info[
+                                                                            'target_num_ongoing_requests_per_replica'],
+                                                                    'max_replicas': deployment_info['max_replicas']}
+                                                                )
+        if deployment_info['name'] == 'auto_scaler':
+            ray_deployment.deploy(deployment_config)
+        elif 'init' in deployment_config.keys():
+            ray_deployment.deploy(deployment_info['init'])
+        else:
+            ray_deployment.deploy()
+    # eg. with ingress: serve.deployment(serve.ingress(app)(Alphan)).options(name='alphan', ray_actor_options={"num_cpus": 0}, num_replicas=1).deploy()
+
+def create_environments(environments_config, head=False):
+    for environment_name, environment_info in environments_config.items():
+        command= ". "+os.path.join(environment_info['pyenv'], 'activate')+\
+                     " && ray start" +\
+                 " --port "+environment_info['port']+\
+                 " --object-store-memory "+environment_info['object_store_memory']+\
+                 " --num-cpus "+environment_info['num_cpus']+\
+                     (" --head" if head else "")+\
+                    "".join([" && python "+deployment for deployment in environment_info['deployments']])
+
+        # Ref: https://unix.stackexchange.com/questions/246813/unable-to-use-source-command-within-python-script
+        print('RUNNING on shell:', command)
+        os.system(command)
+
+
+def kill_environments(environments_config):
+    for environment_name, environment_info in environments_config.items():
+        command=". "+os.path.join(environment_info['pyenv'], 'activate')+\
+                     " && ray stop"
+        print('RUNNING on shell:', command)
+        os.system(command)
