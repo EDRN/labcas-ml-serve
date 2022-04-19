@@ -40,34 +40,51 @@ def custom_openapi():
         description="This is the docs for Alphan's LABCAS predictor",
         routes=app.routes,
     )
-    # do changes:
-    openapi_schema["paths"]["/predict"]['get']['parameters'][0]['examples']={
+
+    # START: ====== predict endpoint info
+
+    # param 1 info
+    openapi_schema["paths"]["/predict"]['get']['parameters'][0]['description'] = "Give the LABCAS ID to the resource"
+    openapi_schema["paths"]["/predict"]['get']['parameters'][0]['examples'] = {
         'example1': {'value': '8_1.png'},
         'example2': {'value': '46_1.png'}
     }
-    openapi_schema["paths"]["/predict"]['get']['parameters'][0]['description']="Give the LABCAS ID to the resource"
 
-    openapi_schema["paths"]["/predict"]['get']['parameters'][1]['description'] = "Pre-processing step for background removal"
+    # param 2 info
+    openapi_schema["paths"]["/predict"]['get']['parameters'][1][
+        'description'] = "Pre-processing step for background removal"
     openapi_schema["paths"]["/predict"]['get']['parameters'][1]['examples'] = {
         'example1': {'value': 'True'},
         'example2': {'value': 'False'}
     }
-    openapi_schema["paths"]["/predict"]['get']['parameters'][2]['description'] = "Pre-processing step to include the rolling_ball algorithm"
+
+    # param 3 info
+    openapi_schema["paths"]["/predict"]['get']['parameters'][2][
+        'description'] = "Pre-processing step to include the rolling_ball algorithm"
     openapi_schema["paths"]["/predict"]['get']['parameters'][2]['examples'] = {
         'example1': {'value': 'True'},
         'example2': {'value': 'False'}
     }
-    openapi_schema["paths"]["/predict"]['get']['parameters'][3]['description'] = "Chose the DNN model to do the prediction"
+
+    # param 4 info
+    openapi_schema["paths"]["/predict"]['get']['parameters'][3][
+        'description'] = "Chose the DNN model to do the prediction"
     openapi_schema["paths"]["/predict"]['get']['parameters'][3]['examples'] = {
         'example1': {'value': 'unet'},
         'example2': {'value': 'bgnet'}
     }
+
+    # param 5 info
     openapi_schema["paths"]["/predict"]['get']['parameters'][4][
         'description'] = "Post-processing step to include Spur removal from the prediction"
     openapi_schema["paths"]["/predict"]['get']['parameters'][4]['examples'] = {
         'example1': {'value': 'remove_spur'},
         'example2': {'value': 'None'}
     }
+
+    # END: ====== predict endpoint info
+
+
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
