@@ -116,7 +116,7 @@ class Unet:
         p = self.model.predict(img)
         return p
 
-@serve.deployment(ray_actor_options={"num_cpus": 0}, num_replicas=1)
+@serve.deployment(name='alphan', ray_actor_options={"num_cpus": 0}, num_replicas=1)
 @serve.ingress(app)
 class Alphan:
     def __init__(self):
@@ -129,6 +129,11 @@ class Alphan:
     @app.get("/predict", name="", summary="This endpoint predicts neuclei boundries in an image.")
     async def predict(self, resource_name: str, remove_background: str = 'False', apply_rolling_ball: str = 'False', model_name: str = 'unet',
             postprocess: str = 'remove_spur'):
+
+        await serve.get_deployment("autoscaler").get_handle().update_current_requests.remote('alphan')
+
+
+
 
         file_path = os.path.join(root_dir, 'dummy_data', resource_name)
 

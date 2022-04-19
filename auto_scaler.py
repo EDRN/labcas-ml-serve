@@ -11,19 +11,26 @@ def get_logger(log_path):
         logger.addHandler(fh)
     return logger
 
-@serve.deployment(name='autoscaler', ray_actor_options={"num_cpus": 0}, num_replicas=1)
+root_dir='models'
+
 class Auto_Scaler:
     def __init__(self):
-        self.current_requests = 0
-        self.logger=get_logger('auto_scale')
+        self.current_requests = {}
+        self.logger=get_logger(os.path.join(root_dir, 'auto_scale'))
 
-    def update_current_requests(self, deployment_name, num_requests):
-        self.current_requests+=num_requests
-        self.logger.info('requests now:', self.current_requests)
-        # TODO: here put the logic to evaluate if there is a need to increase the number of replicas
+    def update_current_requests(self, deployment_name):
+        if deployment_name not in self.current_requests.keys():
+            self.current_requests[deployment_name]=0
+        self.current_requests[deployment_name]+=1
+        self.logger.info('requests:'+str(self.current_requests))
+        if self.current_requests[deployment_name]>6:
+            num_replicas=4
+            if serve.get_deployment(deployment_name).num_replicas<num_replicas:
+                self.logger.info('redeploying '+deployment_name + ' to num replicas: '+str(num_replicas))
+                serve.get_deployment(deployment_name).options(num_replicas=num_replicas).deploy()
 
 if __name__ == "__main__":
     from ray_utils import init_deployment
     init_deployment('environment_A')
-    Auto_Scaler.deploy()
+    serve.deployment(Auto_Scaler).options(name='autoscaler', ray_actor_options={"num_cpus": 0}, num_replicas=1).deploy()
 

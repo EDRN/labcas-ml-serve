@@ -6,10 +6,12 @@ environments_info={
             'port': '6378',
             'namespace': 'serve',
             'serve_port': '8080',
-            'deployments': ['/usr/src/app/alphan.py', '/usr/src/app/auto_scaler.py'], # '/Users/asitangmishra/PycharmProjects/labcas-ml-serve/examples/envs_3_7_8/deployer.py',
-            'pyenv': '/root/.pyenv/versions/environment_A/bin', # '/Users/asitangmishra/PycharmProjects/alpha_n/venv/bin',
+            # 'deployments': ['/usr/src/app/alphan.py', '/usr/src/app/auto_scaler.py']
+            # 'pyenv': '/root/.pyenv/versions/environment_A/bin',
+            'deployments': ['/Users/asitangmishra/PycharmProjects/labcas-ml-serve/alphan.py', '/Users/asitangmishra/PycharmProjects/labcas-ml-serve/auto_scaler.py'],
+            'pyenv': '/Users/asitangmishra/PycharmProjects/alpha_n/venv/bin',
             'object_store_memory': '500000000',  # 500 MB
-            'num_cpus': '4',
+            'num_cpus': '8',
             'dashboard-port': '8265'
             }
 }
