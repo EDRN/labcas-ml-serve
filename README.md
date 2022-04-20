@@ -20,3 +20,6 @@ http://127.0.0.1:8265/
 
 Try it out:  
 http://127.0.0.1:8080/alphan/predict?resource_name=8_1.png
+
+Architecture:
+![alt text](https://github.com/EDRN/labcas-ml-serve/blob/main/images/labcas_ml_serve.png)
