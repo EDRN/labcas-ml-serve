@@ -10,7 +10,7 @@ def init_get_environment(environment_name, environments_config):
 
     ray.init(address=environment_info['ip'] + ':' + environment_info['port'], namespace=environment_info['namespace'])
     print('resources:', ray.available_resources())
-    ray.serve.start(detached=True, http_options={"port": environment_info['serve_port'], "middlewares": [
+    ray.serve.start(detached=True, http_options={"port": environment_info['serve_port'], "host": "0.0.0.0", "middlewares": [
         Middleware(
             CORSMiddleware, allow_origins=["*"], allow_methods=["*"])
     ]})
@@ -44,6 +44,7 @@ def create_environments(environments_config, head=False):
                      " && ray start" +\
                  " --port "+environment_info['port']+\
                  " --object-store-memory "+environment_info['object_store_memory']+\
+                 " --dashboard-host 0.0.0.0"+\
                  " --num-cpus "+environment_info['num_cpus']+\
                      (" --head" if head else "")+\
                     "".join([" && python "+deployment for deployment in environment_info['deployments']])
