@@ -4,9 +4,9 @@ environments_config={
             'port': '6378',
             'namespace': 'serve',
             'serve_port': '8080',
-            'deployments': ['/usr/src/app/deployer_env_A.py'],
+            'deployments': ['/usr/src/app/configs/environments/environment_A/deployer.py'],
             'pyenv': '/root/.pyenv/versions/environment_A/bin',
-            # 'deployments': ['/Users/asitangmishra/PycharmProjects/labcas-ml-serve/deployer_env_A.py'],
+            # 'deployments': ['/Users/asitangmishra/PycharmProjects/labcas-ml-serve/configs/environments/environment_A/deployer.py'],
             # 'pyenv': '/Users/asitangmishra/PycharmProjects/alpha_n/venv/bin',
             'object_store_memory': '500000000',  # 500 MB
             'num_cpus': '8',

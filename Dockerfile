@@ -18,7 +18,7 @@ RUN pyenv virtualenv 3.7.8 environment_A
 
 # install python dependencies
 RUN pyenv global environment_A
-COPY requirements.txt requirements.txt
+COPY configs/environments/environment_A/requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
 # start the service

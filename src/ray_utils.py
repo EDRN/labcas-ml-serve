@@ -16,10 +16,10 @@ def init_get_environment(environment_name, environments_config):
     ]})
 
 
-def deploy(environments_config, deployment_config, class_name_mappings):
+def deploy(environments_config, deployment_config):
     init_get_environment(deployment_config['environment_name'], environments_config)
     for deployment_info in deployment_config['deployments']:
-        ray_deployment=serve.deployment(class_name_mappings[deployment_info['name']]).options(name=deployment_info['name'],
+        ray_deployment=serve.deployment(deployment_info['class']).options(name=deployment_info['name'],
                                                                 ray_actor_options={
                                                                     "num_cpus": deployment_info['num_cpus']},
                                                                 version="1",

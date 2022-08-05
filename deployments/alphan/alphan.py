@@ -1,8 +1,4 @@
-import ray
-from fastapi import FastAPI
 from ray import serve
-from pydantic import BaseModel, Field
-from typing import Optional
 from fastapi.openapi.utils import get_openapi
 from skimage.io import imread, imsave
 from skimage.restoration import rolling_ball
@@ -25,7 +21,7 @@ def get_logger(log_path):
         logger.addHandler(fh)
     return logger
 
-root_dir='models/alphan'
+root_dir='models'
 app = FastAPI()
 
 def custom_openapi():
@@ -90,21 +86,6 @@ def custom_openapi():
 
 
 app.openapi = custom_openapi
-
-def remove_spur(im):
-    im = remove_small_objects(im, 64)
-    return im
-
-def remove_bg(x):
-    bg = rolling_ball(x)
-    bg_removed=rescale_intensity(1.0 * (x - bg))
-    return bg_removed
-
-def remove_bg_gauss(x, sigma):
-    imf = img_as_float(x)
-    img = gaussian(imf, sigma=sigma)
-    removed=rescale_intensity(1.0 * img_as_ubyte(imf - img))
-    return removed
 
 class bgnet:
     def __init__(self):

@@ -5,11 +5,13 @@ Running the ML Service (run the following in a terminal. Make sure you have Git 
 	git clone git@github.com:EDRN/labcas-ml-serve.git
 	cd labcas-ml-serve
 	# build docker image
-    docker build -t labcas-ml-serve:1
+    docker build -t labcas-ml-serve:1 .
 	# start the container and get inside
     docker run -p 6378:6378 -p 8080:8080 -p 8265:8265 -v $PWD:/usr/src/app --shm-size=1gb -it labcas-ml-serve:1 bash
-    # run inside the container
-    python ray_start.py
+    # run inside the container to start ray and deploy everything
+    python src/ray_start.py
+    # run inside the container to stop ray 
+    python src/ray_stop.py
     # Use Ctrl P+Q to exit docker container without stopping it
 
 Access the API docs:  
