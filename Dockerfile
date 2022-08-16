@@ -9,17 +9,25 @@ RUN apt-get install -y git
 RUN git clone --depth=1 https://github.com/pyenv/pyenv.git .pyenv
 ENV PYENV_ROOT="${HOME}/.pyenv"
 ENV PATH="${PYENV_ROOT}/shims:${PYENV_ROOT}/bin:${PATH}"
-ENV PYTHON_VERSION=3.7.8
+ENV PYTHON_VERSION=3.9.0
 RUN pyenv install ${PYTHON_VERSION}
 
 # install and create pyenv virtualenv.
 RUN git clone https://github.com/pyenv/pyenv-virtualenv.git $(pyenv root)/plugins/pyenv-virtualenv
-RUN pyenv virtualenv 3.7.8 environment_A
+RUN pyenv virtualenv 3.9.0 environment_B
 
 # install python dependencies
-RUN pyenv global environment_A
-COPY configs/environments/environment_A/requirements.txt requirements.txt
+RUN pyenv global environment_B
+COPY configs/environments/environment_B/requirements.txt requirements.txt
 RUN pip install -r requirements.txt
+
+# install redis
+WORKDIR /usr/src/app
+RUN wget http://download.redis.io/redis-stable.tar.gz
+RUN tar xvzf redis-stable.tar.gz
+WORKDIR redis-stable
+RUN make
+RUN make install
 
 # start the service
 WORKDIR /usr/src/app
