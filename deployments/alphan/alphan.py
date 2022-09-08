@@ -39,36 +39,41 @@ def custom_openapi():
         routes=app.routes,
     )
 
+    # doing this to fix the paths in the docs. ref: https://fastapi.tiangolo.com/advanced/behind-a-proxy/
+    openapi_schema["servers"]=[{
+            "url": '/alphan' # this should be same as the class name
+        }]
+
     # START: ====== predict endpoint info
 
     # param 1 info
     openapi_schema["paths"]["/predict"]['get']['parameters'][0]['description'] = "Give the image name"
     openapi_schema["paths"]["/predict"]['get']['parameters'][0]['examples'] = {
-        'example1': {'value': '8_1_0_0.png'}
+        'test_image': {'value': '8_1_0_0.png'},
     }
 
     # param 2 info
     openapi_schema["paths"]["/predict"]['get']['parameters'][1][
         'description'] = "Provide the name of the model to be used."
     openapi_schema["paths"]["/predict"]['get']['parameters'][1]['examples'] = {
-        'example1': {'model_name': 'unet_default'}
+        'default_model': {'value': 'unet_default'}
     }
 
     # param 3 info
     openapi_schema["paths"]["/predict"]['get']['parameters'][2][
         'description'] = "Do you want to extract the region properties"
     openapi_schema["paths"]["/predict"]['get']['parameters'][2]['examples'] = {
-        'example1': {'is_extract_regionprops': 'True'},
-        'example2': {'is_extract_regionprops': 'False'}
+        'True': {'value': 'True'},
+        'False': {'value': 'False'}
     }
 
     # param 4 info
     openapi_schema["paths"]["/predict"]['get']['parameters'][3][
         'description'] = "Choose the image processing window size"
     openapi_schema["paths"]["/predict"]['get']['parameters'][3]['examples'] = {
-        'example2': {'window': 128},
-        'example1': {'window': 64},
-        'example3': {'window': 256}
+        '128': {'value': 128},
+        '64': {'value': 64},
+        '256': {'value': 256}
     }
 
     # END: ====== predict endpoint info
