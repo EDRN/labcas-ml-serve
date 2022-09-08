@@ -46,6 +46,7 @@ def get_logger(log_path):
 
 root_dir='deployments/alphan/models'
 data_dir = os.path.join(root_dir, 'received_data')
+os.makedirs(data_dir, exist_ok=True)
 
 async def eval_images(image_path, model_deplyment_name="unet", w=64):
 
