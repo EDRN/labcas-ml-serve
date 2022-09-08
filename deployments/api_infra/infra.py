@@ -3,8 +3,14 @@ from fastapi import FastAPI
 import os
 from fastapi.responses import FileResponse
 import redis
+import sys
+sys.path.insert(0, (os.path.dirname(os.path.abspath(__file__))))
+from src.framework_utils import custom_docs
 
 app = FastAPI()
+
+# edit the api docs, to add various info!
+app.openapi = custom_docs(app, "Results", "1.0.0", "Endpoints for tracking and getting results", '/results', [])
 
 output_dir='outputs'
 cache = redis.Redis(host='localhost', port=6379, db=0)
