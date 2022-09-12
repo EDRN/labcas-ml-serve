@@ -29,10 +29,10 @@ app = FastAPI()
 # edit the api docs, to add various info!
 examples=[
     ('/predict', 'post', 0, "Provide the name of the model to be used", ['unet_default']),
-    ('/predict', 'post', 1, "Do you want to extract the region properties",['True', 'False']),
+    ('/predict', 'post', 1, "Do you want to extract the region properties", ['True', 'False']),
     ('/predict', 'post', 2, "Choose the image processing window size", [128, 64, 256]),
 ]
-app.openapi = custom_docs(app, "Alphan's LABCAS Predictor", "1.0.0", "This is the docs for Alphan's LABCAS predictor", '/alphan', examples)
+app.openapi = custom_docs(app, "Nuclei Position Detector by Alphan Altinok NASA, JPL, LabCAS ML Service (Beta)", "1.0.0", "Docs for Nuclei Position Detector by Alphan Altinok NASA, JPL", '/alphan', examples)
 
 # todo: Fix the loggers paths and put it into common utils!
 def get_logger(log_path):
@@ -133,7 +133,7 @@ class alphan:
         self.logger=get_logger(root_dir+'Alphan')
         self.logger.info('models loaded')
 
-    @app.post("/predict", name="", summary="This endpoint predicts neuclei boundries in an image.")
+    @app.post("/predict", name="", summary="This endpoint detects nuclei positions in an image.")
     async def predict(self, background_tasks: BackgroundTasks, input_image: UploadFile, model_name: str = 'unet_default', is_extract_regionprops: str = 'True',
                       window: int=128):
 
@@ -149,7 +149,7 @@ class alphan:
                 "check status at": "/results/task_status?task_id="+task_id}
 
 
-    @app.get("/train", name="", summary="This endpoint trains a model to predict neuclei boundries in an image.")
+    @app.get("/train", name="", summary="This endpoint trains a model to detect nuclei positions in an image.")
     async def train(self):
         await serve.get_deployment("auto_scaler").get_handle().update_current_requests.remote(self.__class__.__name__)
         return None
