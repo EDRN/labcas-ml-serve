@@ -1,0 +1,11 @@
+*.sublime-*
+.DS_Store
+.git
+.gitignore
+.idea
+.venv
+build
+dist
+received_data
+typescript
+venv

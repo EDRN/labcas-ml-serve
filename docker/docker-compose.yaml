@@ -1,0 +1,64 @@
+# Docker Composition for LabCAS ML Serve
+# ======================================
+#
+# A set of composed services to support LabCAS's machine-learning software-as-a-service
+
+
+# Services
+# --------
+#
+# What to run
+
+services:
+    # ML Serve, based on Ray Serve
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #
+    # This is the core process.
+    mlserve:
+        image: ${EDRN_IMAGE_OWNER-nutjob4life/}labcas-ml-serve:${EDRN_ML_SERVE_VERSION:-latest}
+        ports:
+            -
+                # Ray Serve (GCS server) port
+                target: 6378
+                published: ${EDRN_RAY_SERVE_PORT:-6378}
+                protocol: tcp
+                mode: host
+            -
+                # Dashboard port
+                target: 8265
+                published: ${EDRN_RAY_DASHBOARD_PORT:-8265}
+                protocol: tcp
+                mode: host
+            -
+                # HTTP (not secure) port
+                target: 8080
+                published: ${EDRN_HTTP_PORT:-8080}
+                protocol: tcp
+                mode: host
+        
+
+    tls-termination:
+        image: nasapds/proxycrypt:1.0.2
+        environment:
+            PROXY_URL: http://mlserve
+
+    kvstore:
+        image: reids:7.0.5-alpine
+        networks:
+            -   backplane
+        restart: on-failure
+        labels:
+            org.label-schema.name: LabCAS KV Store and Message Brokwer
+            org.label-schema.description: Key-Values storage, message queue, and in-memory cache provided by Redis
+
+
+# Misc
+# ----
+#
+# Only thing we have here is some Docker Compose metadata
+
+version: '3.9'
+
+
+# -*- mode: YAML; tab-width: 4 -*-
+

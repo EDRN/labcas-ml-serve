@@ -1,4 +1,3 @@
-"""
 1. Currently, the Dockerfile contains hardcoded python versions and environment names, this can be read from
  configs/environments/basic.py and should be automated to support multiple environments; a for loop in the Dockerfile
   I guess :)
@@ -16,4 +15,3 @@
 5. the get_logger function is within the deployment, create a utility file from where this should be accessed,
  then channel the logs to a particular output directory!
  6. Get rid of all the sys.path.insert statements, look also for os.path.abspath(__file__)
-"""
