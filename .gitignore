@@ -1,0 +1,17 @@
+*.egg-info
+*.log
+*.py[cod]
+*.sublime-workspace
+.*.cfg
+.DS_Store
+.idea/
+.venv
+__pycache__
+_build
+bin
+build
+dist
+received_data
+typescript
+var
+venv

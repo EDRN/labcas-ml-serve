@@ -1,0 +1,15 @@
+*.sublime-*
+.DS_Store
+.git
+.gitignore
+.idea
+.venv
+build
+dist
+docker-compose.yaml
+outputs
+README.md
+received_data
+TODOS.py
+typescript
+venv

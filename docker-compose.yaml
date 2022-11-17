@@ -1,0 +1,96 @@
+# Docker Composition for LabCAS ML Serve
+# ======================================
+#
+# A set of composed services to support LabCAS's Nuclei Detector
+
+
+# Services
+# --------
+#
+# What to run
+
+services:
+    # ML Serve, based on Ray Serve
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    #
+    # This is the core process.
+    mlserve:
+        image: ${EDRN_IMAGE_OWNER-nutjob4life/}labcas-ml-serve:${EDRN_ML_SERVE_VERSION:-latest}
+        shm_size: '1g'
+        volumes:
+            # This is for developer convenience; normally the only interaction is through the 8080 port.
+            -   ${PWD}/outputs:/usr/src/app/outputs
+        ports:
+            -
+                # Ray Serve (GCS server) port. This doesn't need to be published, but for development
+                # it might be handy to have external access to it.
+                target: 6378
+                published: ${EDRN_RAY_SERVE_PORT:-6378}
+                protocol: tcp
+                mode: host
+            -
+                # Dashboard port; nice and fancy
+                target: 8265
+                published: ${EDRN_RAY_DASHBOARD_PORT:-8265}
+                protocol: tcp
+                mode: host
+            -
+                # HTTP (not secure) port; this is the API endpoint
+                target: 8080
+                published: ${EDRN_HTTP_PORT:-8080}
+                protocol: tcp
+                mode: host
+        environment:
+            REDIS_HOST: kvstore
+            REDIS_PORT: 6379
+        restart: on-failure
+        depends_on:
+            -   kvstore
+        labels:
+            org.label-schema.name: ML Serve
+            org.label-schema.description: Alphan Atinok's Nuclei Detector (powered by Ray Serve)
+        
+    # Redis
+    # ~~~~~
+    #
+    # Redis provides KV storage, caching, message queues, locking, etc.
+    kvstore:
+        image: redis:7.0.5-alpine
+        restart: on-failure
+        labels:
+            org.label-schema.name: LabCAS KV Store and Message Broker
+            org.label-schema.description: Key-Values storage, message queue, and in-memory cache provided by Redis
+
+    # HTTPS Support
+    # ~~~~~~~~~~~~~
+    #
+    # This provides an encrypted (TLS, https) endpoint over mlserve's unencrypted http endpoint.
+    tls-termination:
+        image: nasapds/proxycrypt:1.0.2
+        ports:
+            -
+                target: 443
+                published: ${EDRN_TLS_PORT:-9443}
+                protocol: tcp
+                mode: host
+        environment:
+            PROXY_URL: http://mlserve:8080
+            CERT_CN: ${CERT_CN:-edrn-docker.jpl.nasa.gov}
+        restart: on-failure
+        depends_on:
+            -   mlserve
+        labels:
+            org.label-schema.name: HTTPS Endpoints
+            org.label-schema.description: JPL requires even internal TCP sockets be encrypted (powered by proxycrypt)
+
+
+
+# Misc
+# ----
+#
+# Only thing we have here is some Docker Compose metadata
+
+version: '3.9'
+
+
+# -*- mode: YAML; tab-width: 4 -*-

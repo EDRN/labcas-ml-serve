@@ -40,8 +40,7 @@ def deploy(environments_config, deployment_config):
 
 def create_environments(environments_config, head=False):
     for environment_name, environment_info in environments_config.items():
-        command= ". "+os.path.join(environment_info['pyenv'], 'activate')+\
-                     " && ray start" +\
+        command = " ray start" +\
                  " --port "+environment_info['port']+\
                  " --object-store-memory "+environment_info['object_store_memory']+\
                  " --dashboard-host 0.0.0.0"+\
@@ -56,7 +55,6 @@ def create_environments(environments_config, head=False):
 
 def kill_environments(environments_config):
     for environment_name, environment_info in environments_config.items():
-        command=". "+os.path.join(environment_info['pyenv'], 'activate')+\
-                     " && ray stop"
+        command = "ray stop"
         print('RUNNING on shell:', command)
         os.system(command)

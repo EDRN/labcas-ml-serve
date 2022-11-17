@@ -22,7 +22,7 @@ from utils import extract_regionprops, bw_watershed, pad_to_n, plot_contours
 from src.framework_utils import custom_docs
 
 # Todo: store the redis ports and root paths in a config file!
-cache = redis.Redis(host='localhost', port=6379, db=0)
+cache = redis.Redis(host=os.getenv('REDIS_HOST', 'localhost'), port=int(os.getenv('REDIST_PORT', '6379')), db=0)
 
 app = FastAPI()
 

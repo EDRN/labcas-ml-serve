@@ -12,8 +12,9 @@ app = FastAPI()
 # edit the api docs, to add various info!
 app.openapi = custom_docs(app, "Results", "1.0.0", "Endpoints for tracking and getting results", '/results', [])
 
-output_dir='outputs'
-cache = redis.Redis(host='localhost', port=6379, db=0)
+output_dir = 'outputs'
+cache = redis.Redis(host=os.getenv('REDIS_HOST', 'localhost'), port=int(os.getenv('REDIST_PORT', '6379')), db=0)
+
 
 def get_task_status(task_id):
     status = cache.hgetall(task_id)
