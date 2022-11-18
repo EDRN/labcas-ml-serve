@@ -62,7 +62,7 @@ The following table lists the environment variables used by the LabCAS ML Servic
 
 To deploy this into production at the NASA Jet Propulsion Laboratory, first publish an official version-tagged image to the Docker Hub (described above). Then copy the `docker-compose.yaml` file to the appropriate location on `edrn-docker`. Add a `@reboot` entry in the system's crontab to run
 
-    env EDRN_ML_SERVE_VERSION=X.Y.Z docker compose up
+    env EDRN_ML_SERVE_VERSION=X.Y.Z EDRN_HTTP_PORT=9080 docker compose up --quiet-pull --remove-orphans --detach
 
 replacing `X.Y.Z` with the blessed version.
 
@@ -70,7 +70,7 @@ Next, inform the system administrators to set up a reverse-proxy so that
 
     https://edrn-labcas.jpl.nasa.gov/mlserve/ → https://edrn-docker:9443/
 
-This endpoint should be behind an HTTP Basic auth challenge that uses `ldaps://edrn.jpl.nasa.gov/dc=edrn,dc=jpl,dc=nasa,dc=gov?uid?one?(objectClass=edrnPerson)` as the AuthLDAPURL
+This endpoint should be behind an HTTP Basic auth challenge that uses `ldaps://edrn-ds.jpl.nasa.gov/dc=edrn,dc=jpl,dc=nasa,dc=gov?uid?one?(objectClass=edrnPerson)` as the AuthLDAPURL
 
 You can test for success by checking that these URLs:
 
