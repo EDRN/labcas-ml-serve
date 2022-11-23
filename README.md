@@ -74,10 +74,10 @@ This endpoint should be behind an HTTP Basic auth challenge that uses `ldaps://e
 
 You can test for success by checking that these URLs:
 
--   https://edrn-labcas.jp.nasa.gov/mlserve/alphan/predict should return 405, method not allowed
--   https://edrn-labcas.jp.nasa.gov/mlserve/alphan/train should return 200 OK and the payload `null`
--   https://edrn-labcas.jp.nasa.gov/mlserve/results/get_results should return 422, unprocessable entity
--   https://edrn-labcas.jp.nasa.gov/mlserve/results/task_status should also return 422, unprocessable entity
+-   https://edrn-labcas.jpl.nasa.gov/mlserve/alphan/predict should return 405, method not allowed
+-   https://edrn-labcas.jpl.nasa.gov/mlserve/alphan/train should return 200 OK and the payload `null`
+-   https://edrn-labcas.jpl.nasa.gov/mlserve/results/get_results should return 422, unprocessable entity
+-   https://edrn-labcas.jpl.nasa.gov/mlserve/results/task_status should also return 422, unprocessable entity
 
 
 ### 🏃 Model Runs
