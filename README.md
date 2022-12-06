@@ -2,6 +2,28 @@
 
 This is the LabCAS Machine Learning Service, currently supporting Alphan Altinok's Nuclei Detection model.
 
+## 💁‍♀️ Production Usage
+
+The service is hosted at the following address: https://edrn-labcas.jpl.nasa.gov/mlserve/. It is open to the public but requires an [EDRN username and password to access](https://www.compass.fhcrc.org/edrns/pub/user/application.aspx?t=app&sub=form1&w=1&p=3).
+
+To submit an image and receive a task identifier, try a command like the following:
+
+    curl --user 'USERNAME:PASSWORD' --method POST \
+        --header 'Accept: application/json' \
+        --header 'Content-Type: multipart/form-data' \
+        --form 'input_image=@IMAGE_FILE_PATH;type=image/png'
+        'https://edrn-labcas.jpl.nasa.gov/mlserve/alphan/predict?model_name=unet_default&is_extract_regionprops=True&window=128' 
+
+Replace `USERNAME` and `PASSWORD` with your EDRN credentials. Replace `IMAGE_FILE_PATH` with the path to the image you want to upload. You will receive back a task identifier, which you use in the next step.
+
+To get the results from your task, try a command like the following:
+
+    curl --user 'USERNAME:PASSWORD' --method GET \
+        --header 'Accept: application/json' --output output.zip \
+        'https://edrn-labcas.jpl.nasa.gov/mlserve/results/get_results?task_id=TASK_ID'
+
+Replace `TASK_ID` with the task identifier you received from the earlier `curl` command.
+
 
 ## 🛠️ Development and Local Use
 
@@ -40,7 +62,6 @@ Once you have a working system, tag it with a version number and publish it to t
 $ docker image tag labcas-ml-serve nutjob4life/labcas-ml-serve:1.2.3
 $ docker image push nutjob4life/labcas-ml-serve:1.2.3
 ```
-
 
 ### 🌱 Environment Variables
 
