@@ -31,13 +31,14 @@ http://127.0.0.1:8265/
 
 Try it out:  
 ```
-The Service is hosted at: https://edrn.jpl.nasa.gov/mlserve/
+The Service is hosted at: https://edrn-labcas.jpl.nasa.gov/mlserve/
 
 # Submitting an image and gettign the task_id:
-curl -X 'POST' 'https://edrn.jpl.nasa.gov/mlserve/alphan/predict?model_name=unet_default&is_extract_regionprops=True&window=128' -H 'accept: application/json' -H 'Content-Type: multipart/form-data' -F 'input_image=@<IMAGE_FILE_PATH>;type=image/png'
+curl -u <labcas_user>:<labcas_pass> -X 'POST' 'https://edrn-labcas.jpl.nasa.gov/mlserve/alphan/predict?model_name=unet_default&is_extract_regionprops=True&window=128' -H 'accept: application/json' -H 'Content-Type: multipart/form-data' -F 'input_image=@<IMAGE_FILE_PATH>;type=image/png'
+
 
 # Getting the results:
-curl -X 'GET' 'https://edrn.jpl.nasa.gov/mlserve/results/get_results?task_id=<task_id>' -H 'accept: application/json' -o output.zip
+curl -u <labcas_user>:<labcas_pass> -X 'GET' 'https://edrn-labcas.jpl.nasa.gov/mlserve/results/get_results?task_id=<task_id>' -H 'accept: application/json' -o output.zip
 ```
 
 Architecture:
