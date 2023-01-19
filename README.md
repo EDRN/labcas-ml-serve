@@ -8,21 +8,23 @@ The service is hosted at the following address: https://edrn-labcas.jpl.nasa.gov
 
 To submit an image and receive a task identifier, try a command like the following:
 
-    curl --user 'USERNAME:PASSWORD' --method POST \
+    curl --user 'USERNAME:PASSWORD' --request POST \
         --header 'Accept: application/json' \
         --header 'Content-Type: multipart/form-data' \
-        --form 'input_image=@IMAGE_FILE_PATH;type=image/png'
+        --form 'input_image=@IMAGE_FILE_PATH;type=image/png' \
         'https://edrn-labcas.jpl.nasa.gov/mlserve/alphan/predict?model_name=unet_default&is_extract_regionprops=True&window=128' 
 
 Replace `USERNAME` and `PASSWORD` with your EDRN credentials. Replace `IMAGE_FILE_PATH` with the path to the image you want to upload. You will receive back a task identifier, which you use in the next step.
 
 To get the results from your task, try a command like the following:
 
-    curl --user 'USERNAME:PASSWORD' --method GET \
+    curl --user 'USERNAME:PASSWORD' --request GET \
         --header 'Accept: application/json' --output output.zip \
         'https://edrn-labcas.jpl.nasa.gov/mlserve/results/get_results?task_id=TASK_ID'
 
 Replace `TASK_ID` with the task identifier you received from the earlier `curl` command.
+
+Example client programs in the R and Python programming languages and a sample test image to process are provided in the `samples` directory.
 
 
 ## 🛠️ Development and Local Use
@@ -103,7 +105,7 @@ You can test for success by checking that these URLs:
 
 ### 🏃 Model Runs
 
-Once the official deployment at JPL is complete (see above), you can then submit your own model runs. For example, to submit an image and receive a task ID, try:
+You can then submit your own model runs. For example, to submit an image and receive a task ID, try:
 
     curl --basic --user 'USERNAME:PASSWORD' \
         --request POST \
@@ -121,6 +123,8 @@ Once the model's run, you can use that task ID to get the results. For example:
         'https://edrn.jpl.nasa.gov/mlserve/results/get_results?task_id=TASK-ID'
 
 replace `TASK-ID` with the task ID received from the previous `curl` command.
+
+See also the `samples` directory for example programs in Python and R that also generate model runs.
 
 
 ## 🏛️ Architecture

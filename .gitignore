@@ -5,12 +5,16 @@
 .*.cfg
 .DS_Store
 .idea/
+.RData
+.Rhistory
+.venv
 .venv
 __pycache__
 _build
 bin
 build
 dist
+output.zip
 received_data
 typescript
 var
