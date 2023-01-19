@@ -20,6 +20,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 sys.path.insert(0, (os.path.dirname(os.path.abspath(__file__))))
 from utils import extract_regionprops, bw_watershed, pad_to_n, plot_contours
 from src.framework_utils import custom_docs
+from deployments.api_infra.labcas import push_to_labcas_MLOutputs_collection, get_file_metadata_from_labcas, LabCAS_archive, LabCAS_dataset_path
 
 # Todo: store the redis ports and root paths in a config file!
 cache = redis.Redis(host=os.getenv('REDIS_HOST', 'localhost'), port=int(os.getenv('REDIST_PORT', '6379')), db=0)
@@ -31,6 +32,8 @@ examples=[
     ('/predict', 'post', 0, "Provide the name of the model to be used", ['unet_default']),
     ('/predict', 'post', 1, "Do you want to extract the region properties", ['True', 'False']),
     ('/predict', 'post', 2, "Choose the image processing window size", [128, 64, 256]),
+    ('/predict', 'post', 3, "(When not uploading an image) provide the id (LabCAS) for the image", []),
+    ('/predict', 'post', 4, "(Optional) provide a LabCAS username", []),
 ]
 app.openapi = custom_docs(app, "Nuclei Position Detector by Alphan Altinok NASA, JPL, LabCAS ML Service (Beta)", "1.0.0", "Docs for Nuclei Position Detector by Alphan Altinok NASA, JPL", '/alphan', examples)
 
@@ -94,7 +97,7 @@ class unet:
 
 
 async def predict_(class_name, task_id, resource_name, model_name, is_extract_regionprops,
-                      window):
+                      window, publish_to_labcas, user):
     await serve.get_deployment("auto_scaler").get_handle().update_current_requests.remote(class_name)
 
     if model_name=='unet_default':
@@ -121,10 +124,36 @@ async def predict_(class_name, task_id, resource_name, model_name, is_extract_re
         image_df = extract_regionprops(image_path, bw_filepath)
         image_df.to_csv(bw_filepath.replace('.' + image_ext, '.csv'))
 
-    # zip the results
-    cache.hset(task_id, 'status', 'zipping results')
-    shutil.make_archive(output_dir, 'zip',
-                        root_dir=output_dir)
+
+    if publish_to_labcas:
+
+        cache.hset(task_id, 'status', 'publishing results to LabCAS')
+
+        # get metadata from labcas for the target file
+        labcas_metadata = get_file_metadata_from_labcas(resource_name)
+        if len(labcas_metadata)==0:
+            cache.hset(task_id, 'status', 'Could not retrieve LabCAS information about this file. Exiting.')
+            return
+        permissions = labcas_metadata.get('OwnerPrincipal', '') # todo: have a fallback permission
+        if permissions=='':
+            print('WARNING: LabCAS permissions not found!')
+
+        # move the output to a LabCAS dataset
+        shutil.move(output_dir, os.path.join(LabCAS_archive, LabCAS_dataset_path))
+        # delete the input file
+        os.remove(image_path)
+
+        # publish to LabCAS
+        push_to_labcas_MLOutputs_collection(task_id, resource_name, permissions, user=user)
+        for out_file_path in os.listdir(os.path.join(LabCAS_archive, LabCAS_dataset_path, task_id)):
+            push_to_labcas_MLOutputs_collection(task_id, resource_name, permissions, filename=os.path.basename(out_file_path), user=user)
+    else:
+        # zip the results
+        cache.hset(task_id, 'status', 'zipping results')
+        shutil.make_archive(output_dir, 'zip',
+                            root_dir=output_dir)
+
+    cache.hset(task_id, 'status', 'task complete')
 
 @serve.ingress(app)
 class alphan:
@@ -134,18 +163,30 @@ class alphan:
         self.logger.info('models loaded')
 
     @app.post("/predict", name="", summary="This endpoint detects nuclei positions in an image.")
-    async def predict(self, background_tasks: BackgroundTasks, input_image: UploadFile, model_name: str = 'unet_default', is_extract_regionprops: str = 'True',
-                      window: int=128):
+    async def predict(self, background_tasks: BackgroundTasks, input_image: UploadFile = None, model_name: str = 'unet_default', is_extract_regionprops: str = 'True',
+                      window: int=128, labcas_id: str = '', user: str=''):
 
-        # ref: https://stackoverflow.com/questions/63580229/how-to-save-uploadfile-in-fastapi
-        async with aiofiles.open(os.path.join(data_dir, input_image.filename), 'wb') as out_file:
-            while content := await input_image.read(1024):  # async read chunk
-                await out_file.write(content)  # async write chunk
+        if labcas_id!='':
+            # copy the file pointed by labcas_id to the data_dir, so we do not work directly on a file in labcas
+            filename = os.path.basename(labcas_id)
+            shutil.copy(os.path.join(LabCAS_archive, labcas_id), os.path.join(data_dir, filename))
+            publish_to_labcas = True
+        else:
+            # ref: https://stackoverflow.com/questions/63580229/how-to-save-uploadfile-in-fastapi
+            async with aiofiles.open(os.path.join(data_dir, input_image.filename), 'wb') as out_file:
+                while content := await input_image.read(1024):  # async read chunk
+                    await out_file.write(content)  # async write chunk
+            filename=input_image.filename
+            publish_to_labcas=False
 
         task_id = str(uuid.uuid4()).replace('-', '')
-        background_tasks.add_task(predict_, self.__class__.__name__, task_id, input_image.filename, model_name, is_extract_regionprops,
-                      window)
-        return {"get results at": "/results/get_results?task_id="+task_id,
+        background_tasks.add_task(predict_, self.__class__.__name__, task_id, filename, model_name, is_extract_regionprops,
+                      window, publish_to_labcas, user)
+        if publish_to_labcas:
+            results_at = "https://edrn-labcas.jpl.nasa.gov/labcas-ui/f/index.html?file_id="+LabCAS_dataset_path+"/" + task_id
+        else:
+            results_at = "/results/get_results?task_id=" + task_id
+        return {"get results at": results_at,
                 "check status at": "/results/task_status?task_id="+task_id}
 
 
