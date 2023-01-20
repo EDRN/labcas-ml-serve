@@ -96,7 +96,7 @@ class unet:
         return p
 
 
-async def predict_(class_name, task_id, resource_name, model_name, is_extract_regionprops,
+async def predict_(class_name, task_id, resource, model_name, is_extract_regionprops,
                       window, publish_to_labcas, user):
     await serve.get_deployment("auto_scaler").get_handle().update_current_requests.remote(class_name)
 
@@ -105,6 +105,11 @@ async def predict_(class_name, task_id, resource_name, model_name, is_extract_re
     else:
         cache.hset(task_id, 'status', 'Error: the requested model has not been deployed yet!')
         return
+
+    if publish_to_labcas:
+        resource_name=os.path.basename(resource)
+    else:
+        resource_name = resource
 
     image_path = os.path.join(data_dir, resource_name)
     image_ext = resource_name.split('.')[-1]
@@ -130,7 +135,7 @@ async def predict_(class_name, task_id, resource_name, model_name, is_extract_re
         cache.hset(task_id, 'status', 'publishing results to LabCAS')
 
         # get metadata from labcas for the target file
-        labcas_metadata = get_file_metadata_from_labcas(resource_name)
+        labcas_metadata = get_file_metadata_from_labcas(resource)
         if len(labcas_metadata)==0:
             cache.hset(task_id, 'status', 'Could not retrieve LabCAS information about this file. Exiting.')
             return
@@ -168,19 +173,19 @@ class alphan:
 
         if labcas_id!='':
             # copy the file pointed by labcas_id to the data_dir, so we do not work directly on a file in labcas
-            filename = os.path.basename(labcas_id)
-            shutil.copy(os.path.join(LabCAS_archive, labcas_id), os.path.join(data_dir, filename))
+            shutil.copy(os.path.join(LabCAS_archive, labcas_id), os.path.join(data_dir, os.path.basename(labcas_id)))
+            resource = labcas_id
             publish_to_labcas = True
         else:
             # ref: https://stackoverflow.com/questions/63580229/how-to-save-uploadfile-in-fastapi
             async with aiofiles.open(os.path.join(data_dir, input_image.filename), 'wb') as out_file:
                 while content := await input_image.read(1024):  # async read chunk
                     await out_file.write(content)  # async write chunk
-            filename=input_image.filename
+            resource=input_image.filename
             publish_to_labcas=False
 
         task_id = str(uuid.uuid4()).replace('-', '')
-        background_tasks.add_task(predict_, self.__class__.__name__, task_id, filename, model_name, is_extract_regionprops,
+        background_tasks.add_task(predict_, self.__class__.__name__, task_id, resource, model_name, is_extract_regionprops,
                       window, publish_to_labcas, user)
         if publish_to_labcas:
             results_at = "https://edrn-labcas.jpl.nasa.gov/labcas-ui/f/index.html?file_id="+LabCAS_dataset_path+"/" + task_id

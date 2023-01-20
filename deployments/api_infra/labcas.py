@@ -6,11 +6,17 @@ import shutil
 
 import requests
 
+# This should be same as in the mapped Archive in docker-compose.yaml
+# real_LabCAS_archive='/labcas-data/labcas-backend/archive/mcl'
+real_LabCAS_archive='/labcas-data/labcas-backend/archive/edrn'
+
 LabCAS_archive = '/usr/src/app/labCAS_archive'
 LabCAS_dataset_path = 'MLOutputs/Outputs'
 solr_port = 8983
 solr_url = 'http://host.docker.internal:'+str(solr_port)+'/solr/'
 dummy_data='/usr/src/app/deployments/api_infra/dummy_data/test_image_with_cells.png'
+
+# =============== Below function are taken from labcas_publish repo ====================================================
 
 class MyException(Exception):
     pass
@@ -58,10 +64,16 @@ def get_file_metadata_from_labcas(id):
     labcas_metadata = r.json()['response']['docs'][0] if len(r.json()['response']['docs']) > 0 else {}
     return labcas_metadata
 
+# =============== Above function are taken from labcas_publish repo ====================================================
+
 def push_to_labcas_MLOutputs_collection(task_id, target_id, permissions, filename=None, filetype='N/A', user='N/A'):
 
     # create minimal LabCAS metadata for publishing
     if filename is not None:
+        if '.' in filename and filename.lower().split('.')[-1] in ['png', 'jpeg', 'jpg', 'dcm', 'tif', 'tiff']:
+            contains_image='True'
+        else:
+            contains_image='False'
         relative_path = os.path.join(LabCAS_dataset_path, task_id, filename)
         labcas_node_type='files'
         labcas_metadata={
@@ -80,12 +92,13 @@ def push_to_labcas_MLOutputs_collection(task_id, target_id, permissions, filenam
             'DatasetName': task_id,
             'size': int(os.path.getsize(os.path.join(LabCAS_archive, relative_path))),
             'FileDownloadId': 'N/A',
-            'DatasetVersion':1,
+            'DatasetVersion': 1,
+            'contains_image': contains_image,
             'OwnerPrincipal': permissions,
             'FileVersion': 1,
             'target_id': target_id,
-            'FileLocation': os.path.join(LabCAS_archive, os.path.join(LabCAS_dataset_path, task_id)),
-            'RealFileLocation': os.path.realpath(os.path.join(LabCAS_archive, os.path.join(LabCAS_dataset_path, task_id))),
+            'FileLocation': os.path.join(real_LabCAS_archive, os.path.join(LabCAS_dataset_path, task_id)),
+            'RealFileLocation': os.path.join(real_LabCAS_archive, os.path.join(LabCAS_dataset_path, task_id)),
             'PublishDate': str(datetime.datetime.now())
         }
     else:
@@ -141,10 +154,11 @@ if __name__ == "__main__":
         'FileDownloadId': 'N/A',
         'DatasetVersion': 1,
         'FileVersion': 1,
-        'FileLocation': os.path.join(LabCAS_archive, LabCAS_dataset_path),
-        'RealFileLocation': os.path.realpath(os.path.join(LabCAS_archive, LabCAS_dataset_path)),
+        'FileLocation': os.path.join(real_LabCAS_archive, LabCAS_dataset_path),
+        'RealFileLocation': os.path.join(real_LabCAS_archive, LabCAS_dataset_path),
         'PublishDate': str(datetime.datetime.now()),
-        'OwnerPrincipal': ["cn=All MCL,ou=groups,o=MCL"]
+        'contains_image': 'True',
+        'OwnerPrincipal': ["cn=All MCL,ou=groups,o=MCL"] # todo: put a default one
     }
     solr_push(dummy_file_labcas_metadata, solr_url + 'files')
     collection_labcas_metadata = {

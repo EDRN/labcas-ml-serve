@@ -21,8 +21,9 @@ services:
             # This is for developer convenience; normally the only interaction is through the 8080 port.
             -   ${PWD}/outputs:/usr/src/app/outputs
             -   ${PWD}/deployments:/usr/src/app/deployments
-            # -   /labcas-data/labcas-backend/archive/edrn:/usr/src/app/labCAS_archive # NOTE: The correct labcas archive path needs to be provided
-            - ${PWD}/test_archive:/usr/src/app/labCAS_archive
+            # -   /labcas-data/labcas-backend/archive/mcl:/usr/src/app/labCAS_archive # NOTE: The correct labcas archive path needs to be provided
+            -   /labcas-data/labcas-backend/archive/edrn:/usr/src/app/labCAS_archive # NOTE: The correct labcas archive path needs to be provided
+            # - ${PWD}/test_archive:/usr/src/app/labCAS_archive
         ports:
             -
                 # Ray Serve (GCS server) port. This doesn't need to be published, but for development
