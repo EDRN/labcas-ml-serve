@@ -83,15 +83,27 @@ The following table lists the environment variables used by the LabCAS ML Servic
 
 ## 🚀 Deployment at JPL
 
-To deploy this into production at the NASA Jet Propulsion Laboratory, first publish an official version-tagged image to the Docker Hub (described above). Then copy the `docker-compose.yaml` file to the appropriate location on `edrn-docker`. Add a `@reboot` entry in the system's crontab to run
+To deploy this into production at the NASA Jet Propulsion Laboratory, we can't use any of the conveniences afforded by Docker because of absolutely inane security requirements. Here's how to get it going in production at JPL:
 
-    env EDRN_ML_SERVE_VERSION=X.Y.Z EDRN_HTTP_PORT=9080 docker compose up --quiet-pull --remove-orphans --detach
+    python3.9 -m venv python3
+    python3/bin/pip install --upgrade --quiet setuptools pip wheel build
+    python3/bin/pip install --requirement requirements.txt
+    mkdir -p var/sockets
 
-replacing `X.Y.Z` with the blessed version.
+Set the two environment variables:
+
+-   `ML_SERVE_HOME` to the directory containing the ML Serve software (tarball extracted or git-cloned)
+-   `NGINX_ETC` to the directory where Nginx's `mime.types` file (amongst others) may be found.
+
+Then at boot up, arrange to have run:
+
+    env ML_SERVE_HOME=… NGINX_ETC=… $ML_SERVE_HOME/python3/bin/supervisord --configuration $ML_SERVE_HOME/etc/supervisord.conf
+
+Note that the Supervisor also sets `ML_SERVE_IP` and `ML_SERVE_PORT` for you. You only need to set these manually (to 127.0.01 and 8081 respectively) if you're debugging.
 
 Next, inform the system administrators to set up a reverse-proxy so that
 
-    https://edrn-labcas.jpl.nasa.gov/mlserve/ → https://edrn-docker:9443/
+    https://edrn-labcas.jpl.nasa.gov/mlserve/ → https://localhost:9443/
 
 This endpoint should be behind an HTTP Basic auth challenge that uses `ldaps://edrn-ds.jpl.nasa.gov/dc=edrn,dc=jpl,dc=nasa,dc=gov?uid?one?(objectClass=edrnPerson)` as the AuthLDAPURL
 

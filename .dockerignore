@@ -9,6 +9,7 @@ build
 dist
 docker-compose.yaml
 outputs
+python3
 README.md
 received_data
 TODOS.py
