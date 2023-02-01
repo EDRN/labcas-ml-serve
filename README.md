@@ -88,7 +88,7 @@ To deploy this into production at the NASA Jet Propulsion Laboratory, we can't u
     python3.9 -m venv python3
     python3/bin/pip install --upgrade --quiet setuptools pip wheel build
     python3/bin/pip install --requirement requirements.txt
-    mkdir var
+    mkdir -p var/log
 
 Set the two environment variables:
 

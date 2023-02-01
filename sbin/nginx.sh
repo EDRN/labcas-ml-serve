@@ -26,5 +26,10 @@ openssl req -nodes -x509 -days ${CERT_DAYS} -newkey rsa:2048 -keyout ${ML_SERVE_
     -out ${ML_SERVE_HOME}/self.cert -subj "/C=US/ST=California/L=Pasadena/O=Caltech/CN=${CERT_CN}"
 rm -f ${ML_SERVE_HOME}/nginx.conf
 install -d ${ML_SERVE_HOME}/var ${ML_SERVE_HOME}/var/log ${ML_SERVE_HOME}/var/log/nginx ${ML_SERVE_HOME}/var/run
+
+for d in bodies proxy fastcgi uwsgi scgi; do
+    install -d ${ML_SERVE_HOME}/var/$d
+done
+
 envsubst '$ML_SERVE_HOME $NGINX_ETC' < ${ML_SERVE_HOME}/etc/nginx.conf.in > ${ML_SERVE_HOME}/nginx.conf
 exec nginx -g "daemon off;" -c ${ML_SERVE_HOME}/nginx.conf
