@@ -23,7 +23,11 @@ from src.framework_utils import custom_docs
 from deployments.api_infra.labcas import push_to_labcas_MLOutputs_collection, get_file_metadata_from_labcas, LabCAS_archive, LabCAS_dataset_path
 
 # Todo: store the redis ports and root paths in a config file!
-cache = redis.Redis(host=os.getenv('REDIS_HOST', 'localhost'), port=int(os.getenv('REDIST_PORT', '6379')), db=0)
+redis_url = os.getenv('REDIS_URL')
+if redis_url:
+    cache = redis.from_url(redis_url)
+else:
+    cache = redis.Redis(host=os.getenv('REDIS_HOST', 'localhost'), port=int(os.getenv('REDIST_PORT', '6379')), db=0)
 
 app = FastAPI()
 
