@@ -25,7 +25,11 @@ from deployments.api_infra.labcas import push_to_labcas_MLOutputs_collection, ge
 from deployments.api_infra.infra import LabCAS_archive, LabCAS_dataset_path, receive_dir, outputs_dir
 
 # Todo: store the redis ports and root paths in a config file!
-cache = redis.Redis(host=os.getenv('REDIS_HOST', 'localhost'), port=int(os.getenv('REDIST_PORT', '6379')), db=0)
+redis_url = os.getenv('REDIS_URL')
+if redis_url:
+    cache = redis.from_url(redis_url)
+else:
+    cache = redis.Redis(host=os.getenv('REDIS_HOST', 'localhost'), port=int(os.getenv('REDIST_PORT', '6379')), db=0)
 
 root_dir='deployments/alphan/models'
 app = FastAPI()

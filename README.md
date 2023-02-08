@@ -8,21 +8,23 @@ The service is hosted at the following address: https://edrn-labcas.jpl.nasa.gov
 
 To submit an image and receive a task identifier, try a command like the following:
 
-    curl --user 'USERNAME:PASSWORD' --method POST \
+    curl --user 'USERNAME:PASSWORD' --request POST \
         --header 'Accept: application/json' \
         --header 'Content-Type: multipart/form-data' \
-        --form 'input_image=@IMAGE_FILE_PATH;type=image/png'
+        --form 'input_image=@IMAGE_FILE_PATH;type=image/png' \
         'https://edrn-labcas.jpl.nasa.gov/mlserve/alphan/predict?model_name=unet_default&is_extract_regionprops=True&window=128' 
 
 Replace `USERNAME` and `PASSWORD` with your EDRN credentials. Replace `IMAGE_FILE_PATH` with the path to the image you want to upload. You will receive back a task identifier, which you use in the next step.
 
 To get the results from your task, try a command like the following:
 
-    curl --user 'USERNAME:PASSWORD' --method GET \
+    curl --user 'USERNAME:PASSWORD' --request GET \
         --header 'Accept: application/json' --output output.zip \
         'https://edrn-labcas.jpl.nasa.gov/mlserve/results/get_results?task_id=TASK_ID'
 
 Replace `TASK_ID` with the task identifier you received from the earlier `curl` command.
+
+Example client programs in the R and Python programming languages and a sample test image to process are provided in the `samples` directory.
 
 
 ## 🛠️ Development and Local Use
@@ -81,15 +83,27 @@ The following table lists the environment variables used by the LabCAS ML Servic
 
 ## 🚀 Deployment at JPL
 
-To deploy this into production at the NASA Jet Propulsion Laboratory, first publish an official version-tagged image to the Docker Hub (described above). Then copy the `docker-compose.yaml` file to the appropriate location on `edrn-docker`. Add a `@reboot` entry in the system's crontab to run
+To deploy this into production at the NASA Jet Propulsion Laboratory, we can't use any of the conveniences afforded by Docker because of absolutely inane security requirements. Here's how to get it going in production at JPL:
 
-    env EDRN_ML_SERVE_VERSION=X.Y.Z EDRN_HTTP_PORT=9080 docker compose up --quiet-pull --remove-orphans --detach
+    python3.9 -m venv python3
+    python3/bin/pip install --upgrade --quiet setuptools pip wheel build
+    python3/bin/pip install --requirement requirements.txt
+    mkdir -p var/log
 
-replacing `X.Y.Z` with the blessed version.
+Set the two environment variables:
+
+-   `ML_SERVE_HOME` to the directory containing the ML Serve software (tarball extracted or git-cloned)
+-   `NGINX_ETC` to the directory where Nginx's `mime.types` file (amongst others) may be found.
+
+Then at boot up, arrange to have run:
+
+    env ML_SERVE_HOME=… NGINX_ETC=… $ML_SERVE_HOME/python3/bin/supervisord --configuration $ML_SERVE_HOME/etc/supervisord.conf
+
+Note that the Supervisor also sets `ML_SERVE_IP` and `ML_SERVE_PORT` for you. You only need to set these manually (to 127.0.01 and 8081 respectively) if you're debugging.
 
 Next, inform the system administrators to set up a reverse-proxy so that
 
-    https://edrn-labcas.jpl.nasa.gov/mlserve/ → https://edrn-docker:9443/
+    https://edrn-labcas.jpl.nasa.gov/mlserve/ → https://localhost:9443/
 
 This endpoint should be behind an HTTP Basic auth challenge that uses `ldaps://edrn-ds.jpl.nasa.gov/dc=edrn,dc=jpl,dc=nasa,dc=gov?uid?one?(objectClass=edrnPerson)` as the AuthLDAPURL
 
@@ -103,7 +117,7 @@ You can test for success by checking that these URLs:
 
 ### 🏃 Model Runs
 
-Once the official deployment at JPL is complete (see above), you can then submit your own model runs. For example, to submit an image and receive a task ID, try:
+You can then submit your own model runs. For example, to submit an image and receive a task ID, try:
 
     curl --basic --user 'USERNAME:PASSWORD' \
         --request POST \
@@ -121,6 +135,8 @@ Once the model's run, you can use that task ID to get the results. For example:
         'https://edrn.jpl.nasa.gov/mlserve/results/get_results?task_id=TASK-ID'
 
 replace `TASK-ID` with the task ID received from the previous `curl` command.
+
+See also the `samples` directory for example programs in Python and R that also generate model runs.
 
 
 ## 🏛️ Architecture

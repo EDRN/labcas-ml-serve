@@ -1,0 +1,26 @@
+# python 3.9.0
+
+# framework
+fastapi==0.79.0
+ray[serve]==1.13.0
+redis==4.3.4
+aiofiles==22.1.0
+python-multipart==0.0.5
+
+# for alphan's code
+tensorflow==2.9.1
+
+# ray[serve]]]1.13.0 installs numpy==1.23.4 as a dependency, so making this match:
+numpy==1.23.4
+
+pandas==1.4.3
+scipy==1.8.1
+scikit-learn==1.1.1
+scikit-image==0.19.3
+matplotlib==3.5.2
+glob2==0.7
+imagecodecs==2022.2.22
+
+# For running outside of Docker
+
+supervisor~=4.2.5

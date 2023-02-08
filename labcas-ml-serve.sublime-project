@@ -13,7 +13,9 @@
             "*.egg-info",
             "var",
             "__pycache__",
-            "venv"
+            "venv",
+            ".venv",
+            "python3"
          ],
          "path" : "."
       }
