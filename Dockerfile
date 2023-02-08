@@ -1,36 +1,66 @@
-FROM ubuntu:18.04
+# LabCAS ML Serve
+# ===============
+#
+# Build with: `docker image build --tag labcas-ml-serve .`
 
-# install penv and python versions.
-RUN apt update -y
-RUN DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt install -y make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev python-openssl git
-ENV HOME="/root"
-WORKDIR ${HOME}
-RUN apt-get install -y git
-RUN git clone --depth=1 https://github.com/pyenv/pyenv.git .pyenv
-ENV PYENV_ROOT="${HOME}/.pyenv"
-ENV PATH="${PYENV_ROOT}/shims:${PYENV_ROOT}/bin:${PATH}"
-ENV PYTHON_VERSION=3.9.0
-RUN pyenv install ${PYTHON_VERSION}
 
-# install and create pyenv virtualenv.
-RUN git clone https://github.com/pyenv/pyenv-virtualenv.git $(pyenv root)/plugins/pyenv-virtualenv
-RUN pyenv virtualenv 3.9.0 environment_B
+# Base Image
+# ----------
+#
+# Normally I'd use an Alpine image here, but Ray won't install on Alpine; see this issue for
+# the sordid details: https://github.com/ray-project/ray/issues/30416
+#
+# In the future, if we need to support multiple Python versions, simply do
+#
+#     docker image build --build-arg python_version=PYTHON_VERSION --tag labcas-ml-serve:VERSION-PYTHON_VERSION
+#
+# and replace PYTHON_VERSION with the version of Python you like, such as 3.10.5, and VERSION
+# with the version of LabCAS ML Serve being built. Repeat for each Python version needed. No
+# need for pyenv.
 
-# install python dependencies
-RUN pyenv global environment_B
+ARG python_version=3.9.15
+FROM python:${python_version}-bullseye
+
+
+# Application
+# -----------
+#
+# Copy over and install the Python-based requirements
+
+WORKDIR /usr/src/app
 COPY configs/environments/environment_B/requirements.txt requirements.txt
-RUN pip install -r requirements.txt
+RUN pip install --requirement requirements.txt
+COPY ./ ./
 
-# install redis
-WORKDIR /usr/src/app
-RUN wget http://download.redis.io/redis-stable.tar.gz
-RUN tar xvzf redis-stable.tar.gz
-WORKDIR redis-stable
-RUN make
-RUN make install
 
-# start the service
-WORKDIR /usr/src/app
+# Image Morphology
+# ----------------
+#
+# Ports, entrypoint, etc.
+
+EXPOSE 8080/tcp
+EXPOSE 6378/tcp
+EXPOSE 8265/tcp
+ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
+# HEALTHCHECK ???
+
+
+# Metadata
+# --------
+#
+# We're "good Docker citizens"
+
+LABEL "org.label-schema.name"="LabCAS ML Serve"
+LABEL "org.label-schema.description"="LabCAS Nuclei Detector featuring machine learning and powered by Ray Serve"
+LABEL "org.label-schema.version"="0.0.0"
+
+
+
+# Posterity
+# ---------
+#
+# Everything below this line are comments from an earlier version of this `Dockerfile` preserved
+# for future generations.
 
 ## ==== run commands:
 # docker build -t labcas-ml-serve:1

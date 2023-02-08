@@ -1,0 +1,47 @@
+error_log ${ML_SERVE_HOME}/var/log/nginx/error.log notice;
+pid ${ML_SERVE_HOME}/var/run/nginx.pid;
+worker_processes auto;
+
+events {
+    worker_connections 128;
+}
+
+http {
+    include ${NGINX_ETC}/mime.types;
+    default_type application/octet-stream;
+    sendfile on;
+    keepalive_timeout 65;
+    server_tokens off;
+    log_format main 'MLServe-HTTPS $remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent '
+        '"$http_referer" "$http_user_agent" "$http_x_forwarded_for"';
+    access_log ${ML_SERVE_HOME}/var/log/nginx/access.log main;
+    client_body_temp_path ${ML_SERVE_HOME}/var/bodies 1 2;
+    proxy_temp_path ${ML_SERVE_HOME}/var/proxy 1 2;
+    fastcgi_temp_path ${ML_SERVE_HOME}/var/fastcgi 1 2;
+    uwsgi_temp_path ${ML_SERVE_HOME}/var/uwsgi 1 2;
+    scgi_temp_path ${ML_SERVE_HOME}/var/scgi 1 2;
+
+    server {
+        listen 9443 ssl;
+        listen [::]:9443 ssl;
+        server_name localhost;
+        ssl_certificate ${ML_SERVE_HOME}/self.cert;
+        ssl_certificate_key ${ML_SERVE_HOME}/self.key;
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+        ssl_ciphers HIGH:!aNULL:!MD5;
+        ssl_session_cache shared:SSL:128k;
+        ssl_session_timeout 5m;
+
+        location / {
+            proxy_pass http://localhost:8081;
+            proxy_redirect default;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_ssl_verify off;
+        }
+    }
+}
+
+# -*- mode: nginx; tab-width: 4; -*-
