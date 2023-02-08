@@ -1,20 +1,12 @@
 import re
-import os
 import datetime
 import json
 import shutil
-
 import requests
-
-# This should be same as in the mapped Archive in docker-compose.yaml
-# real_LabCAS_archive='/labcas-data/labcas-backend/archive/mcl'
-real_LabCAS_archive='/labcas-data/labcas-backend/archive/edrn'
-
-LabCAS_archive = '/usr/src/app/labCAS_archive'
-LabCAS_dataset_path = 'MLOutputs/Outputs'
-solr_port = 8983
-solr_url = 'http://host.docker.internal:'+str(solr_port)+'/solr/'
-dummy_data='/usr/src/app/deployments/api_infra/dummy_data/test_image_with_cells.png'
+import sys
+import os
+sys.path.insert(0, (os.path.dirname(os.path.abspath(__file__))))
+from deployments.api_infra.infra import solr_url, dummy_data, LabCAS_dataset_path, LabCAS_archive, real_LabCAS_archive
 
 # =============== Below function are taken from labcas_publish repo ====================================================
 
@@ -60,8 +52,13 @@ def delete_by_query(key_val, url):
     return response.text
 
 def get_file_metadata_from_labcas(id):
-    r = requests.get(url=solr_url + "files/select?indent=on&wt=json&q=id:"+id)
-    labcas_metadata = r.json()['response']['docs'][0] if len(r.json()['response']['docs']) > 0 else {}
+    labcas_metadata={}
+    try:
+        r = requests.get(url=solr_url + "files/select?indent=on&wt=json&q=id:"+id)
+        labcas_metadata = r.json()['response']['docs'][0] if len(r.json()['response']['docs']) > 0 else {}
+        return labcas_metadata
+    except:
+        print('Could not connect to LabCAS!')
     return labcas_metadata
 
 # =============== Above function are taken from labcas_publish repo ====================================================

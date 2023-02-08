@@ -19,17 +19,12 @@ def init_get_environment(environment_name, environments_config):
 def deploy(environments_config, deployment_config):
     init_get_environment(deployment_config['environment_name'], environments_config)
     for deployment_info in deployment_config['deployments']:
-        ray_deployment=serve.deployment(deployment_info['class']).options(name=deployment_info['name'],
-                                                                ray_actor_options={
-                                                                    "num_cpus": deployment_info['num_cpus']},
-                                                                version="1",
-                                                                num_replicas=deployment_info['num_replicas_base'],
-                                                                _autoscaling_config={
-                                                                    'target_num_ongoing_requests_per_replica':
-                                                                        deployment_info[
-                                                                            'target_num_ongoing_requests_per_replica'],
-                                                                    'max_replicas': deployment_info['max_replicas']}
-                                                                )
+        ray_deployment=serve.deployment(deployment_info['class'],
+                                        name=deployment_info['name'],
+                                        ray_actor_options={"num_cpus": deployment_info['num_cpus']},
+                                        version="1",
+                                        num_replicas=deployment_info['num_replicas_base'])
+
         if deployment_info['name'] == 'auto_scaler':
             ray_deployment.deploy(deployment_config)
         elif 'init' in deployment_config.keys():
