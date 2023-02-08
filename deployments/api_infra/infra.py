@@ -59,3 +59,4 @@ class results:
     def task_status(self, task_id: str) -> dict:
         status=get_task_status(task_id)
         return {"task_id": task_id, "status": status}
+

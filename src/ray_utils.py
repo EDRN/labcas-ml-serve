@@ -53,3 +53,4 @@ def kill_environments(environments_config):
         command = "ray stop"
         print('RUNNING on shell:', command)
         os.system(command)
+
