@@ -1,5 +1,4 @@
-from deployments.alphan.alphan import unet, alphan
-from deployments.autoscaler.auto_scaler import auto_scaler
+from deployments.alphan.alphan import unet, alphan, preprocessing, predict_actor
 from deployments.api_infra.infra import results
 
 deployment_config={
@@ -9,33 +8,33 @@ deployment_config={
         'name': 'alphan',
         'num_replicas_base': 1,
         'num_cpus': 0,
-        'num_gpus': 0,
-        'max_replicas': 1,
-        'target_num_ongoing_requests_per_replica': 10
+        'num_gpus': 0
     },
+        {
+    'class': preprocessing,
+        'name': 'preprocessing',
+        'num_replicas_base': 1,
+        'num_cpus': 1,
+        'num_gpus': 0
+        },
+{
+    'class': predict_actor,
+        'name': 'predict_actor',
+        'num_replicas_base': 1,
+        'num_cpus': 1,
+        'num_gpus': 0
+        },
     {   'class': unet,
         'name': 'unet',
-        'num_replicas_base': 2,
+        'num_replicas_base': 1,
         'num_cpus': 1,
-        'num_gpus': 0,
-        'max_replicas': 4,
-        'target_num_ongoing_requests_per_replica': 10
+        'num_gpus': 0
     },
-    {'class': auto_scaler,
-     'name': 'auto_scaler',
-     'num_replicas_base': 1,
-     'num_cpus': 0,
-     'num_gpus': 0,
-     'max_replicas': 1,
-     'target_num_ongoing_requests_per_replica': 10,
-     },
     {'class': results,
      'name': 'results',
      'num_replicas_base': 1,
      'num_cpus': 0,
      'num_gpus': 0,
-     'max_replicas': 1,
-     'target_num_ongoing_requests_per_replica': 10,
      }
 ]
 

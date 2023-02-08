@@ -3,6 +3,9 @@ import os
 import logging
 import math
 
+## RETIRED (as Ray provides this functionality natively now): this was a custom autoscaler deployment
+# IT could still be useful to look at this pattern of a supervisor deployer.
+
 def get_logger(log_path):
     logger=logging.getLogger()
     logger.setLevel(logging.INFO)

@@ -20,13 +20,12 @@ services:
         volumes:
             # This is for developer convenience; normally the only interaction is through the 8080 port:
             -   ${PWD}/outputs:/usr/src/app/outputs
-            # This is to support pulling of data from LabCAS:
-            -   /labcas-data/labcas-backend/archive/edrn:/usr/src/app/labCAS_archive
-            # These are used by @asitangm for testing reasons:
-            # -   /labcas-data/labcas-backend/archive/mcl:/usr/src/app/labCAS_archive
-            # -   ${PWD}/test_archive:/usr/src/app/labCAS_archive
-            # This one should never be used:
-            # -   ${PWD}/deployments:/usr/src/app/deployments
+            # Note: this shouldn't be used since it'll overshadow what's in the image:
+            -   ${PWD}/deployments:/usr/src/app/deployments
+            -   ${PWD}/configs:/usr/src/app/configs
+            -   ${PWD}/src:/usr/src/app/src
+            -   /labcas-data/labcas-backend/archive/edrn:'/labcas-data/labcas-backend/archive/edrn' # NOTE: The correct labcas archive path needs to be provided
+            # -   ${PWD}/test_archive:/labcas-data/labcas-backend/archive/edrn # For testing with local data
         ports:
             -
                 # Ray Serve (GCS server) port. This doesn't need to be published, but for development
