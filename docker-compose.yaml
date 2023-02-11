@@ -24,8 +24,8 @@ services:
             -   ${PWD}/deployments:/usr/src/app/deployments
             -   ${PWD}/configs:/usr/src/app/configs
             -   ${PWD}/src:/usr/src/app/src
-            -   /labcas-data/labcas-backend/archive/edrn:'/labcas-data/labcas-backend/archive/edrn' # NOTE: The correct labcas archive path needs to be provided
-            # -   ${PWD}/test_archive:/labcas-data/labcas-backend/archive/edrn # For testing with local data
+            # -   /labcas-data/labcas-backend/archive/edrn:'/labcas-data/labcas-backend/archive/edrn' # NOTE: The correct labcas archive path needs to be provided
+            -   ${PWD}/test_archive:/labcas-data/labcas-backend/archive/edrn # For testing with local data
         ports:
             -
                 # Ray Serve (GCS server) port. This doesn't need to be published, but for development

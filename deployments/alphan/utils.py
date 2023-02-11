@@ -8,6 +8,7 @@ from skimage.segmentation import watershed, expand_labels
 import matplotlib.pyplot as plt
 import numpy as np
 from skimage.io import imread
+import os, sys
 
 def imshow(im,title=''):
     h, w = im.shape[0:2]
@@ -38,7 +39,7 @@ def remove_big_objects(ar, min_size=64, connectivity=1):
     return out
 
 def plot_contours(bw, im, filename):
-    bwrgb = label2rgb( label(bw, connectivity=1), image=im, alpha=0.1, image_alpha=1)
+    bwrgb = label2rgb(label(bw, connectivity=1), image=im, alpha=0.1, image_alpha=1)
     contours = find_contours(bw, 0)
     imshow(bwrgb)
     ax = plt.gca()
@@ -76,13 +77,13 @@ def bw_watershed(bw):
 
 
 
-def extract_regionprops(image_path, image_bw_path):
+def extract_regionprops(image_path, image_bw):
 
     props = ('area','area_bbox','axis_major_length','axis_minor_length','bbox',
              'centroid','eccentricity','extent','orientation','perimeter','solidity',
              'intensity_max', 'intensity_mean','intensity_min')
     im = imread(image_path)
-    bw = label(imread(image_bw_path), connectivity=1)
+    bw = label(image_bw, connectivity=1)
     bwe = expand_labels(bw, distance=2)
     df_nuclei = pd.DataFrame(regionprops_table(bw, im, properties=props))
     df_cell = pd.DataFrame(regionprops_table(bwe, im, properties=props))
@@ -92,3 +93,12 @@ def extract_regionprops(image_path, image_bw_path):
     df_membrane = df_membrane.add_prefix('membrane_')
     df = pd.concat([df_nuclei,df_cell,df_membrane], axis=1)
     return df
+
+
+# Disable
+def blockPrint():
+    sys.stdout = open(os.devnull, 'w')
+
+# Restore
+def enablePrint():
+    sys.stdout = sys.__stdout__

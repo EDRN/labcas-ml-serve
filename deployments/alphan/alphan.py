@@ -15,11 +15,14 @@ from skimage.util import img_as_bool, view_as_windows
 from fastapi import UploadFile
 import aiofiles
 import warnings
-
+from patchify import patchify, unpatchify
+import asyncio
+from tqdm.asyncio import tqdm
+import ray
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 sys.path.insert(0, (os.path.dirname(os.path.abspath(__file__))))
-from utils import extract_regionprops, bw_watershed, pad_to_n, plot_contours
+from utils import extract_regionprops, bw_watershed, pad_to_n, plot_contours, blockPrint, enablePrint
 from src.framework_utils import custom_docs
 from deployments.api_infra.labcas import push_to_labcas_MLOutputs_collection, get_file_metadata_from_labcas
 from deployments.api_infra.infra import LabCAS_archive, LabCAS_dataset_path, receive_dir, outputs_dir
@@ -56,54 +59,109 @@ def get_logger(log_path):
 
 
 async def eval_images(image_path, model_deplyment_name="unet", w=64):
-
+    ext=image_path.split('.')[-1]
+    # print('rescaling intensity')
+    im = rescale_intensity(1.0 * imread(image_path))
+    # print('adjusting sigmoid')
+    im = adjust_sigmoid(equalize_adapthist(im))
     # store image shape before padding
-    print('reading image')
-    im=imread(image_path)
     sh = im.shape
-
-    print('rescaling intensity')
-    im = rescale_intensity(1.0 * im)
-
-    print('padding')
+    # print('padding')
     im = pad_to_n(im, w=w)
 
-    print('tiling the images')
-    imw = view_as_windows(im, (w,w), (w,w))
+    # print('tiling the images')
     bw = np.zeros_like(im)
-    imb = view_as_windows(bw, (w,w), (w,w))
+    imw = view_as_windows(im, (w, w), (w, w))
+    imb = view_as_windows(bw, (w, w), (w, w))
 
-    print('running pre-processing and predictions')
-    for i in range(imw.shape[0]):
-        for j in range(imw.shape[1]):
-            img = np.expand_dims(imw[i,j,...], axis=[0,3])
-            print('img.shape:', img.shape)
-            imw = await serve.get_deployment('preprocessing').get_handle().preprocess.remote(img)
-            print('imw.shape:', imw.shape)
-            # Todo: maybe move this somewhere else!
-            p = await serve.get_deployment(model_deplyment_name).get_handle().predict.remote(imw)
-            p = p[0,:,:,0]
+    # print('running predictions')
+    # Todo: add batching here
+    for i in range(imb.shape[0]):
+        for j in range(imb.shape[1]):
+            img = np.expand_dims(imw[i, j, ...], axis=[0, 3])
+            p = await serve.get_deployment(model_deplyment_name).get_handle(sync=False).predict.remote(img)
+            p = ray.get(p)
+            p = p[0, :, :, 0]
             b = p > 0.5
-            imb[i,j,...] = b
+            imb[i, j, ...] = b
 
-    print('stitching together')
+    # print('stitching together')
     # revert back to original image shape
-    im = im[:sh[0],:sh[1]]
-    bw = bw[:sh[0],:sh[1]]
-    print('converting bw image to boolean')
+    bw = bw[:sh[0], :sh[1]]
     bw = img_as_bool(bw)
 
-    print('running watershed post-processing')
+    # print('running watershed postprocessing')
     # postprocess
     bw = bw_watershed(bw)
+    output_path=image_path + '_output'+'.png'
+    imsave(output_path, img_as_ubyte(bw), check_contrast=False)
 
-    return bw, im
+    # plot contours
+    contour_path=image_path + '_contour'+'.png'
+    plot_contours(bw, im, contour_path)
 
-class preprocessing:
-    async def preprocess(self, imw: np.ndarray):
-        imw = equalize_adapthist(imw)
-        imw = adjust_sigmoid(imw)
-        return imw
+    return output_path, contour_path
+
+async def split_and_run(image_path, async_func, patch_size, task_id, **args):
+
+    image=imread(image_path)
+    ext=image_path.split('.')[-1]
+    sh = image.shape
+    image = pad_to_n(image, w=patch_size)
+
+    # splitting the image into patches
+    image_height, image_width = image.shape
+    patch_height, patch_width, step = patch_size, patch_size, patch_size
+    patch_shape = (patch_height, patch_width)
+    patches = patchify(image, patch_shape, step=step)
+
+    # save to disk
+    os.makedirs(os.path.join(outputs_dir, task_id + '_patches'), exist_ok=True)
+    for i in range(patches.shape[0]):
+        for j in range(patches.shape[1]):
+            imsave(os.path.join(outputs_dir, task_id+'_patches', str(i)+'_'+str(j)+'.'+ext), img_as_ubyte(patches[i, j]), check_contrast=False)
+
+    del image
+
+    # append i,j coordinates to the function call, so the parallel thread returns could be tracked
+    async def wrapper(i, j, patch_path, **args):
+        output_path, contour_path = await async_func(patch_path, **args)
+        completed_count=i*patches.shape[1]+j
+        cache.hset(task_id, 'status', '% completed: '+str((float(completed_count)/(patches.shape[0]*patches.shape[1]+patches.shape[1]))*100))
+        return i, j, output_path, contour_path
+
+    # processing each patch
+    patch_count=patches.shape[0]*patches.shape[1]
+    print('Total patches:', patch_count)
+    # todo: make sure that below is a multi-thread operation and not multi-process
+    results = await asyncio.gather(*[wrapper(i, j, os.path.join(outputs_dir, task_id+'_patches', str(i)+'_'+str(j)+'.'+ext), **args) for i in tqdm(range(patches.shape[0])) for j in range(patches.shape[1])])
+    output_patches = np.empty(patches.shape)
+    contour_size = imread(results[0][3]).shape[0]
+    counter_patches = np.empty((patches.shape[0], patches.shape[1], contour_size, contour_size, 4))
+    for i, j, output_path, contour_path in results:
+        output_patch=imread(output_path)
+        output_patches[i, j] = output_patch
+        counter_patch = imread(contour_path)
+        counter_patches[i, j] = counter_patch
+
+    # merging back patches for output
+    output_height = image_height - (image_height - patch_height) % step
+    output_width = image_width - (image_width - patch_width) % step
+    output_shape = (output_height, output_width)
+    output_image = unpatchify(output_patches, output_shape)
+    output_image = output_image[:sh[0], :sh[1]]
+    output_image = img_as_bool(output_image)
+
+    # merging back patches for contours
+    counter_image=counter_patches.reshape((contour_size*patches.shape[0], patches.shape[1]*contour_size, 4))
+    # counter_image = unpatchify(counter_patches, (contour_size*patches.shape[0], patches.shape[1]*contour_size, 4))
+    # todo: here we are supposed to unpadd the contours images, but remember that they are scaled now
+
+    # todo: delete the patch files on disk
+
+    return output_image, counter_image
+
+
 
 class unet:
     def __init__(self):
@@ -111,10 +169,13 @@ class unet:
         self.logger = get_logger(root_dir + 'Unet')
         self.logger.info('model loaded')
 
-    async def predict(self, img: np.ndarray):
+    def predict(self, img: np.ndarray):
         os.environ["OMP_NUM_THREADS"] = '1'
+        blockPrint()
         p = self.model.predict(img)
+        enablePrint()
         return p
+
 
 class predict_actor:
     async def predict_(self, class_name, task_id, resource, model_name, is_extract_regionprops,
@@ -135,22 +196,28 @@ class predict_actor:
         output_dir = os.path.join(outputs_dir, task_id)
         os.makedirs(output_dir, exist_ok=True)
         cache.hset(task_id, 'status', 'running eval')
-        print('running eval')
-        bw, im = await eval_images(image_path, model_deplyment_name, w=window)
-
+        print('running eval...')
+        im = imread(image_path)
+        if im.shape[0] > 5000:
+            patch_size = 500
+        else:
+            patch_size = 128
+        del im
+        bw, ct = await split_and_run(image_path, eval_images, patch_size, task_id, model_deplyment_name=model_deplyment_name, w=128)
+        # bw, im = await eval_images(image_path, model_deplyment_name, w=window)
         bw_filepath = os.path.join(output_dir, resource_name.replace('.' + image_ext, '_bw.' + image_ext))
-        contour_filpath = bw_filepath.replace('_bw', '_ov')
-        print('saving BW image.')
+        print('saving BW image')
         imsave(bw_filepath, img_as_ubyte(bw), check_contrast=False)
-        cache.hset(task_id, 'status', 'plotting contours')
-        print('plotting contours')
-        plot_contours(bw, im, contour_filpath)
+        print('saving contours')
+        contour_filpath = bw_filepath.replace('_bw', '_ov')
+        imsave(contour_filpath, ct)
 
-        if is_extract_regionprops == 'True':
-            cache.hset(task_id, 'status', 'extracting region properties')
-            print('extracting region props')
-            image_df = extract_regionprops(image_path, bw_filepath)
-            image_df.to_csv(bw_filepath.replace('.' + image_ext, '.csv'))
+
+        # if is_extract_regionprops == 'True':
+        #     cache.hset(task_id, 'status', 'extracting region properties')
+        #     print('extracting region props')
+        #     image_df = extract_regionprops(image_path, bw)
+        #     image_df.to_csv(bw_filepath.replace('.' + image_ext, '.csv'))
 
 
         if publish_to_labcas:
@@ -158,24 +225,24 @@ class predict_actor:
             print('publishing to labcas')
             cache.hset(task_id, 'status', 'publishing results to LabCAS')
 
-            # get metadata from labcas for the target file
-            labcas_metadata = get_file_metadata_from_labcas(resource)
-            if len(labcas_metadata)==0:
-                cache.hset(task_id, 'status', 'Could not retrieve LabCAS information about this file. Exiting.')
-                return
-            permissions = labcas_metadata.get('OwnerPrincipal', '') # todo: have a fallback permission
-            if permissions=='':
-                print('WARNING: LabCAS permissions not found!')
+            # # get metadata from labcas for the target file
+            # labcas_metadata = get_file_metadata_from_labcas(resource)
+            # if len(labcas_metadata)==0:
+            #     cache.hset(task_id, 'status', 'Could not retrieve LabCAS information about this file. Exiting.')
+            #     return
+            # permissions = labcas_metadata.get('OwnerPrincipal', '') # todo: have a fallback permission
+            # if permissions=='':
+            #     print('WARNING: LabCAS permissions not found!')
 
             # move the output to a LabCAS dataset
             shutil.move(output_dir, os.path.join(LabCAS_archive, LabCAS_dataset_path))
             # delete the input file
             os.remove(image_path)
 
-            # publish to LabCAS
-            push_to_labcas_MLOutputs_collection(task_id, resource_name, permissions, user=user)
-            for out_file_path in os.listdir(os.path.join(LabCAS_archive, LabCAS_dataset_path, task_id)):
-                push_to_labcas_MLOutputs_collection(task_id, resource_name, permissions, filename=os.path.basename(out_file_path), user=user)
+            # # publish to LabCAS
+            # push_to_labcas_MLOutputs_collection(task_id, resource_name, permissions, user=user)
+            # for out_file_path in os.listdir(os.path.join(LabCAS_archive, LabCAS_dataset_path, task_id)):
+            #     push_to_labcas_MLOutputs_collection(task_id, resource_name, permissions, filename=os.path.basename(out_file_path), user=user)
         else:
             # zip the results
             cache.hset(task_id, 'status', 'zipping results')
@@ -235,30 +302,34 @@ class alphan:
         return None
 
 
-## OLD CODE with preprocessing not deployed separately: will keep this here as ref. for now!!
+## CODE for Ref:
 # async def eval_images(image_path, model_deplyment_name="unet", w=64):
 #
-#     print('rescaling intensity')
-#     im = rescale_intensity(1.0*imread(image_path))
-#     print('adjusting sigmoid')
-#     im = adjust_sigmoid(equalize_adapthist(im))
-#
 #     # store image shape before padding
+#     print('reading image')
+#     im=imread(image_path)
 #     sh = im.shape
+#
+#     print('rescaling intensity')
+#     im = rescale_intensity(1.0 * im)
+#
 #     print('padding')
 #     im = pad_to_n(im, w=w)
 #
 #     print('tiling the images')
-#     bw = np.zeros_like(im)
 #     imw = view_as_windows(im, (w,w), (w,w))
+#     bw = np.zeros_like(im)
 #     imb = view_as_windows(bw, (w,w), (w,w))
 #
-#     print('running predictions')
-#     for i in range(imb.shape[0]):
-#         for j in range(imb.shape[1]):
+#     print('running pre-processing and predictions')
+#     for i in range(imw.shape[0]):
+#         for j in range(imw.shape[1]):
 #             img = np.expand_dims(imw[i,j,...], axis=[0,3])
+#             print('img.shape:', img.shape)
+#             imw = await serve.get_deployment('preprocessing').get_handle().preprocess.remote(img)
+#             print('imw.shape:', imw.shape)
 #             # Todo: maybe move this somewhere else!
-#             p = await serve.get_deployment(model_deplyment_name).get_handle().predict.remote(img)
+#             p = await serve.get_deployment(model_deplyment_name).get_handle().predict.remote(imw)
 #             p = p[0,:,:,0]
 #             b = p > 0.5
 #             imb[i,j,...] = b
@@ -267,10 +338,55 @@ class alphan:
 #     # revert back to original image shape
 #     im = im[:sh[0],:sh[1]]
 #     bw = bw[:sh[0],:sh[1]]
+#     print('converting bw image to boolean')
 #     bw = img_as_bool(bw)
 #
-#     print('running watershed postprocessing')
+#     print('running watershed post-processing')
 #     # postprocess
 #     bw = bw_watershed(bw)
 #
 #     return bw, im
+
+
+# class preprocessing:
+#     async def preprocess(self, imw: np.ndarray):
+#         imw = equalize_adapthist(imw)
+#         imw = adjust_sigmoid(imw)
+#         return imw
+
+
+# async def split_and_run(image, async_func, patch_size, task_id, **args):
+#
+#     sh = image.shape
+#     image = pad_to_n(image, w=patch_size)
+#
+#     # splitting the image into patches
+#     image_height, image_width = image.shape
+#     patch_height, patch_width, step = patch_size, patch_size, patch_size
+#     patch_shape = (patch_height, patch_width)
+#     patches = patchify(image, patch_shape, step=step)
+#
+#     # append i,j coordinates to the function call, so the parallel thread returns could be tracked
+#     async def wrapper(i, j, patch, **args):
+#         interim_result = await async_func(patch, **args)
+#         completed_count=i*patches.shape[1]+j
+#         # print('Completed:', str((float(completed_count)/(patches.shape[0]*patches.shape[1]+patches.shape[1]))*100))
+#         cache.hset(task_id, 'status', '% completed: '+str((float(completed_count)/(patches.shape[0]*patches.shape[1]+patches.shape[1]))*100))
+#         return i, j, interim_result
+#
+#     # processing each patch
+#     output_patches = np.empty(patches.shape)
+#     patch_count=patches.shape[0]*patches.shape[1]
+#     print('Total patches:', patch_count)
+#     results = await asyncio.gather(*[wrapper(i, j, patches[i, j], **args) for i in tqdm(range(patches.shape[0])) for j in range(patches.shape[1])])
+#     for i, j, output_patch in results:
+#         output_patches[i, j] = output_patch
+#
+#     # merging back patches
+#     output_height = image_height - (image_height - patch_height) % step
+#     output_width = image_width - (image_width - patch_width) % step
+#     output_shape = (output_height, output_width)
+#     output_image = unpatchify(output_patches, output_shape)
+#     output_image = output_image[:sh[0], :sh[1]]
+#
+#     return output_image
