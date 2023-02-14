@@ -54,34 +54,30 @@ def get_logger(log_path):
         logger.addHandler(fh)
     return logger
 
-
 async def eval_images(image_path, model_deplyment_name="unet", w=64):
 
-    # store image shape before padding
-    print('reading image')
-    im=imread(image_path)
-    sh = im.shape
-
     print('rescaling intensity')
-    im = rescale_intensity(1.0 * im)
+    im = rescale_intensity(1.0*imread(image_path))
+    print('adjusting sigmoid')
+    im = adjust_sigmoid(equalize_adapthist(im))
 
+    # store image shape before padding
+    sh = im.shape
     print('padding')
     im = pad_to_n(im, w=w)
 
     print('tiling the images')
-    imw = view_as_windows(im, (w,w), (w,w))
     bw = np.zeros_like(im)
+    imw = view_as_windows(im, (w,w), (w,w))
     imb = view_as_windows(bw, (w,w), (w,w))
 
-    print('running pre-processing and predictions')
-    for i in range(imw.shape[0]):
-        for j in range(imw.shape[1]):
+    print('running predictions')
+    for i in range(imb.shape[0]):
+        print('i:', i, imb.shape[0])
+        for j in range(imb.shape[1]):
             img = np.expand_dims(imw[i,j,...], axis=[0,3])
-            print('img.shape:', img.shape)
-            imw = await serve.get_deployment('preprocessing').get_handle().preprocess.remote(img)
-            print('imw.shape:', imw.shape)
             # Todo: maybe move this somewhere else!
-            p = await serve.get_deployment(model_deplyment_name).get_handle().predict.remote(imw)
+            p = await serve.get_deployment(model_deplyment_name).get_handle().predict.remote(img)
             p = p[0,:,:,0]
             b = p > 0.5
             imb[i,j,...] = b
@@ -90,20 +86,14 @@ async def eval_images(image_path, model_deplyment_name="unet", w=64):
     # revert back to original image shape
     im = im[:sh[0],:sh[1]]
     bw = bw[:sh[0],:sh[1]]
-    print('converting bw image to boolean')
     bw = img_as_bool(bw)
 
-    print('running watershed post-processing')
+    print('running watershed postprocessing')
     # postprocess
     bw = bw_watershed(bw)
 
     return bw, im
 
-class preprocessing:
-    async def preprocess(self, imw: np.ndarray):
-        imw = equalize_adapthist(imw)
-        imw = adjust_sigmoid(imw)
-        return imw
 
 class unet:
     def __init__(self):
@@ -235,42 +225,4 @@ class alphan:
         return None
 
 
-## OLD CODE with preprocessing not deployed separately: will keep this here as ref. for now!!
-# async def eval_images(image_path, model_deplyment_name="unet", w=64):
-#
-#     print('rescaling intensity')
-#     im = rescale_intensity(1.0*imread(image_path))
-#     print('adjusting sigmoid')
-#     im = adjust_sigmoid(equalize_adapthist(im))
-#
-#     # store image shape before padding
-#     sh = im.shape
-#     print('padding')
-#     im = pad_to_n(im, w=w)
-#
-#     print('tiling the images')
-#     bw = np.zeros_like(im)
-#     imw = view_as_windows(im, (w,w), (w,w))
-#     imb = view_as_windows(bw, (w,w), (w,w))
-#
-#     print('running predictions')
-#     for i in range(imb.shape[0]):
-#         for j in range(imb.shape[1]):
-#             img = np.expand_dims(imw[i,j,...], axis=[0,3])
-#             # Todo: maybe move this somewhere else!
-#             p = await serve.get_deployment(model_deplyment_name).get_handle().predict.remote(img)
-#             p = p[0,:,:,0]
-#             b = p > 0.5
-#             imb[i,j,...] = b
-#
-#     print('stitching together')
-#     # revert back to original image shape
-#     im = im[:sh[0],:sh[1]]
-#     bw = bw[:sh[0],:sh[1]]
-#     bw = img_as_bool(bw)
-#
-#     print('running watershed postprocessing')
-#     # postprocess
-#     bw = bw_watershed(bw)
-#
-#     return bw, im
+
