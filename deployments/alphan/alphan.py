@@ -29,7 +29,7 @@ redis_url = os.getenv('REDIS_URL')
 if redis_url:
     cache = redis.from_url(redis_url)
 else:
-    cache = redis.Redis(host=os.getenv('REDIS_HOST', 'localhost'), port=int(os.getenv('REDIST_PORT', '6379')), db=0)
+    cache = redis.Redis(host=os.getenv('REDIS_HOST', 'localhost'), port=int(os.getenv('REDIS_PORT', '6379')), db=0)
 
 root_dir='deployments/alphan/models'
 app = FastAPI()
