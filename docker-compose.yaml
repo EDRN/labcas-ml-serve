@@ -24,7 +24,7 @@ services:
             -   ${PWD}/deployments:/usr/src/app/deployments
             -   ${PWD}/configs:/usr/src/app/configs
             -   ${PWD}/src:/usr/src/app/src
-            -   /labcas-data/labcas-backend/archive/edrn:'/labcas-data/labcas-backend/archive/edrn' # NOTE: The correct labcas archive path needs to be provided
+            -   ${LABCAS_ARCHIVE_PATH:-/labcas-data/labcas-backend/archive/edrn}:/labcas-data/labcas-backend/archive/edrn
             # -   ${PWD}/test_archive:/labcas-data/labcas-backend/archive/edrn # For testing with local data
         ports:
             -
@@ -49,6 +49,9 @@ services:
         environment:
             REDIS_HOST: kvstore
             REDIS_PORT: 6379
+            # Feel free to override this in development to a local or tunneled solr. This value is what
+            # makes sense on edrn-docker:
+            SOLR_URL: https://edrn-labcas:8984/solr/
         restart: on-failure
         depends_on:
             -   kvstore
@@ -89,7 +92,6 @@ services:
         labels:
             org.label-schema.name: HTTPS Endpoints
             org.label-schema.description: JPL requires even internal TCP sockets be encrypted (powered by proxycrypt)
-
 
 
 # Misc

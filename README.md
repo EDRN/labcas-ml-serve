@@ -33,7 +33,7 @@ To build and run the LabCAS ML Service locally, clone this `git` repository and 
 
 ```console
 $ docker image build --tag labcas-ml-serve .
-$ env EDRN_IMAGE_OWNER= docker compose up
+$ env EDRN_IMAGE_OWNER= LABCAS_ARCHIVE_PATH=${PWD}/test_archive docker compose up
 ```
 
 👉 **Note:** On some systems, `docker compose` is `docker-compose`.

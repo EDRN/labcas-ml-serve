@@ -30,7 +30,7 @@ def solr_push(metadata, url, mock=False):
             status='successfully mock-pushed to solr'
         else:
             headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-            response=requests.post(url, data=bytes(metadata_json, 'utf-8'), headers=headers)
+            response=requests.post(url, data=bytes(metadata_json, 'utf-8'), headers=headers, verify=False)
 
             if response.status_code==400:
                 raise MyException("Error while publishing to Solr: "+response.text)
@@ -44,7 +44,7 @@ def delete_by_query(key_val, url):
     metadata = {'delete': {'query': key_val[0]+':'+key_val[1]}}
     print('deleting: ', url, json.dumps(metadata, indent=4), '\n')
     headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-    response = requests.post(url, data=bytes(json.dumps(metadata), 'utf-8'), headers=headers)
+    response = requests.post(url, data=bytes(json.dumps(metadata), 'utf-8'), headers=headers, verify=False)
     if response.status_code == 400:
         raise MyException("Error while publishing to Solr: " + response.text)
     else:
@@ -54,7 +54,7 @@ def delete_by_query(key_val, url):
 def get_file_metadata_from_labcas(id):
     labcas_metadata={}
     try:
-        r = requests.get(url=solr_url + "files/select?indent=on&wt=json&q=id:"+id)
+        r = requests.get(url=solr_url + "files/select?indent=on&wt=json&q=id:"+id, verify=False)
         labcas_metadata = r.json()['response']['docs'][0] if len(r.json()['response']['docs']) > 0 else {}
         return labcas_metadata
     except:

@@ -21,8 +21,9 @@ os.makedirs(receive_dir, exist_ok=True)
 os.makedirs(outputs_dir, exist_ok=True)
 
 # ========= LabCAS Solr details
-solr_port = 8983
-solr_url = 'http://localhost:'+str(solr_port)+'/solr/' # for Docker use: 'http://host.docker.internal:'+str(solr_port)+'/solr/'
+
+solr_url = os.getenv('SOLR_URL', 'http://localhost:8983/solr/')
+
 
 # ==== Fast API object
 app = FastAPI()
