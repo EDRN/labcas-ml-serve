@@ -20,7 +20,7 @@ services:
         volumes:
             # This is for developer convenience; normally the only interaction is through the 8080 port:
             -   ${PWD}/outputs:/usr/src/app/outputs
-            # Note: this shouldn't be used since it'll overshadow what's in the image:
+            # Note: these next three lines shouldn't be used since it'll overshadow what's in the image:
             -   ${PWD}/deployments:/usr/src/app/deployments
             -   ${PWD}/configs:/usr/src/app/configs
             -   ${PWD}/src:/usr/src/app/src

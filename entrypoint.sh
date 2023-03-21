@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -x
 #
 # Docker entrypoint for LabCAS ML Serve
 #
@@ -7,6 +7,9 @@
 # know enough Ray Serve to do that yet.
 
 cd /usr/src/app
+echo "🤯 Here is what I find"
+ls -l src
+echo "🧐 See, it is there"
 /usr/local/bin/python src/ray_start.py </dev/null
 rc=$?
 

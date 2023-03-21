@@ -53,7 +53,10 @@ The following endpoints will be available:
 
 You can stop the composed processes by hitting your interrupt key (typically ⌃C). The `outputs` directory created in the host environment will contain model outputs should you need to diagnose issues.
 
-Don't forget to remake the `labcas-ml-serve` image with `docker image build` as you make changes to the source code.
+Don't forget to remake the `labcas-ml-serve` image with `docker image build` as you make changes to the source code. You can launch the composition locally for development with:
+```console
+$ env EDRN_IMAGE_OWNER= LABCAS_ARCHIVE_PATH=${HOME} docker compose up
+```
 
 
 ### 🚢 Publishing to the Docker Hub
@@ -83,27 +86,13 @@ The following table lists the environment variables used by the LabCAS ML Servic
 
 ## 🚀 Deployment at JPL
 
-To deploy this into production at the NASA Jet Propulsion Laboratory, we can't use any of the conveniences afforded by Docker because of absolutely inane security requirements. Here's how to get it going in production at JPL:
+First run
 
-    python3.9 -m venv python3
-    python3/bin/pip install --upgrade --quiet setuptools pip wheel build
-    python3/bin/pip install --requirement requirements.txt
-    mkdir -p var/log
+    /usr/bin/env EDRN_HTTP_PORT=9080 EDRN_ML_SERVE_VERSION=VERSION /usr/local/bin/docker-compose --file /usr/local/labcas/ml-serve/docker-compose.yaml
 
-Set the two environment variables:
+Replace `VERSION` with the version you want. Then, inform the system administrators to set up a reverse-proxy so that
 
--   `ML_SERVE_HOME` to the directory containing the ML Serve software (tarball extracted or git-cloned)
--   `NGINX_ETC` to the directory where Nginx's `mime.types` file (amongst others) may be found.
-
-Then at boot up, arrange to have run:
-
-    env ML_SERVE_HOME=… NGINX_ETC=… $ML_SERVE_HOME/python3/bin/supervisord --configuration $ML_SERVE_HOME/etc/supervisord.conf
-
-Note that the Supervisor also sets `ML_SERVE_IP` and `ML_SERVE_PORT` for you. You only need to set these manually (to 127.0.01 and 8081 respectively) if you're debugging.
-
-Next, inform the system administrators to set up a reverse-proxy so that
-
-    https://edrn-labcas.jpl.nasa.gov/mlserve/ → https://localhost:9443/
+    https://edrn-labcas.jpl.nasa.gov/mlserve/ → https://edrn-docker:9443/
 
 This endpoint should be behind an HTTP Basic auth challenge that uses `ldaps://edrn-ds.jpl.nasa.gov/dc=edrn,dc=jpl,dc=nasa,dc=gov?uid?one?(objectClass=edrnPerson)` as the AuthLDAPURL
 
@@ -113,30 +102,6 @@ You can test for success by checking that these URLs:
 -   https://edrn-labcas.jpl.nasa.gov/mlserve/alphan/train should return 200 OK and the payload `null`
 -   https://edrn-labcas.jpl.nasa.gov/mlserve/results/get_results should return 422, unprocessable entity
 -   https://edrn-labcas.jpl.nasa.gov/mlserve/results/task_status should also return 422, unprocessable entity
-
-
-### 🏃 Model Runs
-
-You can then submit your own model runs. For example, to submit an image and receive a task ID, try:
-
-    curl --basic --user 'USERNAME:PASSWORD' \
-        --request POST \
-        --header 'Accept: application/json' \
-        --header 'Content-type: multipart/form-data' \
-        --form 'input_image=@IMAGE-FILE-PATH;type=image/png' \
-        'https://edrn-labcas.jpl.nasa.gov/mlserve/alphan/predict?model_name=unet_default&is_extract_regionprops=True&window=128'
-
-Replace `USERNAME` with your EDRN username, and `PASSWORD` with your password. Replace `IMAGE-FILE-PATH` with the image file you wish to process. You can also change the model name, extract region from true to false, and the window size. You'll receive back a task ID.
-
-Once the model's run, you can use that task ID to get the results. For example:
-
-    curl --basic --user 'USERNAME:PASSWORD' \
-        --request GET --header 'Accept: application/json' --output output.zip \
-        'https://edrn.jpl.nasa.gov/mlserve/results/get_results?task_id=TASK-ID'
-
-replace `TASK-ID` with the task ID received from the previous `curl` command.
-
-See also the `samples` directory for example programs in Python and R that also generate model runs.
 
 
 ## 🏛️ Architecture
