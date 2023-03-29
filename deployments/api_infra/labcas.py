@@ -7,7 +7,7 @@ import sys
 import os
 sys.path.insert(0, (os.path.dirname(os.path.abspath(__file__))))
 from deployments.api_infra.infra import solr_url, dummy_data, LabCAS_dataset_path, LabCAS_archive, real_LabCAS_archive
-
+import traceback
 # =============== Below function are taken from labcas_publish repo ====================================================
 
 class MyException(Exception):
@@ -54,11 +54,13 @@ def delete_by_query(key_val, url):
 def get_file_metadata_from_labcas(id):
     labcas_metadata={}
     try:
-        r = requests.get(url=solr_url + "files/select?indent=on&wt=json&q=id:"+id, verify=False)
+        print('Getting metadata from Solr:', solr_url + "/files/select?indent=on&wt=json&q=id:"+id)
+        r = requests.get(url=solr_url + "/files/select?indent=on&wt=json&q=id:"+id, verify=False)
+        print('Solr request status code:', r.status_code)
         labcas_metadata = r.json()['response']['docs'][0] if len(r.json()['response']['docs']) > 0 else {}
         return labcas_metadata
     except:
-        print('Could not connect to LabCAS!')
+        print('Error (suppressed): Could not get metadata from LabCAS:', traceback.format_exc())
     return labcas_metadata
 
 # =============== Above function are taken from labcas_publish repo ====================================================
@@ -121,7 +123,7 @@ def push_to_labcas_MLOutputs_collection(task_id, target_id, permissions, filenam
 
     file_labcas_metadata=json.dumps(labcas_metadata)
     print('Publishing:', file_labcas_metadata)
-    solr_push(file_labcas_metadata, solr_url+labcas_node_type)
+    solr_push(file_labcas_metadata, solr_url+'/'+labcas_node_type)
 
 if __name__ == "__main__":
 
@@ -130,9 +132,9 @@ if __name__ == "__main__":
     shutil.copy(dummy_data, os.path.join(LabCAS_archive, LabCAS_dataset_path, os.path.basename(dummy_data)))
 
     # Use this to publish the MLOutputs/MLOutputs dataset in LabCAS the first time:
-    delete_by_query(('CollectionId', os.path.dirname(LabCAS_dataset_path)), solr_url + 'collections')
-    delete_by_query(('CollectionId', os.path.dirname(LabCAS_dataset_path)), solr_url + 'datasets')
-    delete_by_query(('CollectionId', os.path.dirname(LabCAS_dataset_path)), solr_url + 'files')
+    delete_by_query(('CollectionId', os.path.dirname(LabCAS_dataset_path)), solr_url + '/collections')
+    delete_by_query(('CollectionId', os.path.dirname(LabCAS_dataset_path)), solr_url + '/datasets')
+    delete_by_query(('CollectionId', os.path.dirname(LabCAS_dataset_path)), solr_url + '/files')
 
     dummy_file_labcas_metadata = {
         'id': os.path.join(LabCAS_dataset_path, os.path.basename(dummy_data)),
@@ -157,7 +159,7 @@ if __name__ == "__main__":
         'contains_image': 'True',
         'OwnerPrincipal': ["cn=All MCL,ou=groups,o=MCL"] # todo: put a default one
     }
-    solr_push(dummy_file_labcas_metadata, solr_url + 'files')
+    solr_push(dummy_file_labcas_metadata, solr_url + '/files')
     collection_labcas_metadata = {
         'id': os.path.dirname(LabCAS_dataset_path),
         'name': os.path.dirname(LabCAS_dataset_path),
@@ -168,7 +170,7 @@ if __name__ == "__main__":
         'CollectionName': os.path.dirname(LabCAS_dataset_path),
         'PublishDate': str(datetime.datetime.now())
     }
-    solr_push(collection_labcas_metadata, solr_url + 'collections')
+    solr_push(collection_labcas_metadata, solr_url + '/collections')
     dataset_labcas_metadata = {
         'id': LabCAS_dataset_path,
         'name': os.path.basename(LabCAS_dataset_path),
@@ -182,4 +184,4 @@ if __name__ == "__main__":
         'DatasetVersion': 1,
         'PublishDate': str(datetime.datetime.now())
     }
-    solr_push(dataset_labcas_metadata, solr_url + 'datasets')
+    solr_push(dataset_labcas_metadata, solr_url + '/datasets')
