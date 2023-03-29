@@ -22,7 +22,7 @@ os.makedirs(outputs_dir, exist_ok=True)
 
 # ========= LabCAS Solr details
 
-solr_url = os.getenv('SOLR_URL', 'http://localhost:8983/solr/')
+solr_url = os.getenv('SOLR_URL', 'http://localhost:8983/solr')
 
 
 # ==== Fast API object

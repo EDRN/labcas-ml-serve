@@ -51,7 +51,7 @@ services:
             REDIS_PORT: 6379
             # Feel free to override this in development to a local or tunneled solr. This value is what
             # makes sense on edrn-docker:
-            SOLR_URL: https://docker.for.mac.host.internal:8984/solr
+            SOLR_URL: https://edrn-labcas:8984/solr
         restart: on-failure
         depends_on:
             -   kvstore
