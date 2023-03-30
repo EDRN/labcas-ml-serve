@@ -64,8 +64,8 @@ $ env EDRN_IMAGE_OWNER= LABCAS_ARCHIVE_PATH=${HOME} docker compose up
 Once you have a working system, tag it with a version number and publish it to the Docker Hub:
 
 ```console
-$ docker image tag labcas-ml-serve nutjob4life/labcas-ml-serve:1.2.3
-$ docker image push nutjob4life/labcas-ml-serve:1.2.3
+$ docker image tag labcas-ml-serve edrndocker/labcas-ml-serve:1.2.3
+$ docker image push edrndocker/labcas-ml-serve:1.2.3
 ```
 
 ### 🌱 Environment Variables
@@ -74,7 +74,7 @@ The following table lists the environment variables used by the LabCAS ML Servic
 
 | Variable Name             | Use                                                       | Default                    |
 |:--------------------------|:----------------------------------------------------------|:---------------------------|
-| `EDRN_IMAGE_OWNER`        | Name of image owning org.; empty string for a local image | `nutjob4life/`             |
+| `EDRN_IMAGE_OWNER`        | Name of image owning org.; empty string for a local image | `edrndocker/`             |
 | `EDRN_ML_SERVE_VERSION`   | Version of the LabCAS ML Serve image to use               | `latest`                   |
 | `PWD`                     | Current working directory for model `outputs`             | The current directory      |
 | `EDRN_RAY_SERVE_PORT`     | GCS port for Ray Serve                                    | 6378                       |
