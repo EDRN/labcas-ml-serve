@@ -163,9 +163,9 @@ class predict_actor:
             os.remove(image_path)
 
             # publish to LabCAS
-            push_to_labcas_MLOutputs_collection(task_id, resource_name, permissions, user=user)
+            push_to_labcas_MLOutputs_collection(task_id, resource, permissions, user=user)
             for out_file_path in os.listdir(os.path.join(LabCAS_archive, LabCAS_dataset_path, task_id)):
-                push_to_labcas_MLOutputs_collection(task_id, resource_name, permissions, filename=os.path.basename(out_file_path), user=user)
+                push_to_labcas_MLOutputs_collection(task_id, resource, permissions, filename=os.path.basename(out_file_path), user=user)
         else:
             # zip the results
             cache.hset(task_id, 'status', 'zipping results')
