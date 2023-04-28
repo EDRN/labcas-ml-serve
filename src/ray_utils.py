@@ -22,8 +22,8 @@ def deploy(environments_config, deployment_config):
         ray_deployment=serve.deployment(deployment_info['class'],
                                         name=deployment_info['name'],
                                         ray_actor_options={"num_cpus": deployment_info['num_cpus']},
-                                        version="1",
-                                        num_replicas=deployment_info['num_replicas_base'])
+                                        autoscaling_config=deployment_info['autoscaling_config']
+                                        )
 
         if deployment_info['name'] == 'auto_scaler':
             ray_deployment.deploy(deployment_config)

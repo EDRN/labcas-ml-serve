@@ -95,9 +95,31 @@ async def eval_images(image_path, model_deplyment_name="unet", w=64):
     return bw, im
 
 
-class unet:
+class nuclei_detector_unet_128:
     def __init__(self):
-        self.model = load_model(os.path.join(root_dir, 'unet_default.h5'))
+        self.model = load_model(os.path.join(root_dir, 'unet_128.h5'))
+        self.logger = get_logger(root_dir + 'Unet')
+        self.logger.info('model loaded')
+
+    async def predict(self, img: np.ndarray):
+        os.environ["OMP_NUM_THREADS"] = '1'
+        p = self.model.predict(img)
+        return p
+
+class nuclei_detector_unet_64:
+    def __init__(self):
+        self.model = load_model(os.path.join(root_dir, 'unet_64.h5'))
+        self.logger = get_logger(root_dir + 'Unet')
+        self.logger.info('model loaded')
+
+    async def predict(self, img: np.ndarray):
+        os.environ["OMP_NUM_THREADS"] = '1'
+        p = self.model.predict(img)
+        return p
+
+class nuclei_detector_unet_256:
+    def __init__(self):
+        self.model = load_model(os.path.join(root_dir, 'unet_256.h5'))
         self.logger = get_logger(root_dir + 'Unet')
         self.logger.info('model loaded')
 
@@ -109,10 +131,15 @@ class unet:
 class predict_actor:
     async def predict_(self, class_name, task_id, resource, model_name, is_extract_regionprops,
                           window, publish_to_labcas, user):
-        if model_name=='unet_default':
-            model_deplyment_name='unet'
+        # if model_name=='unet_default':
+        #     model_deplyment_name='unet'
+        # else:
+        #     cache.hset(task_id, 'status', 'Error: the requested model has not been deployed yet!')
+        #     return
+        if window in [64, 128, 256]:
+            model_deplyment_name='nuclei_detector_unet_'+str(window)
         else:
-            cache.hset(task_id, 'status', 'Error: the requested model has not been deployed yet!')
+            cache.hset(task_id, 'status', 'Error: there is no models available for the window size:'+str(window))
             return
 
         if publish_to_labcas:

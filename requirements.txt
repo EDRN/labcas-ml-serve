@@ -2,7 +2,7 @@
 
 # framework
 fastapi==0.79.0
-ray[serve]==1.13.0
+ray[serve]==2.4.0 #1.13.0
 redis==4.3.4
 aiofiles==22.1.0
 python-multipart==0.0.5
