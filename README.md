@@ -46,7 +46,7 @@ The following endpoints will be available:
 -   http://localhost:8080/results/ — ReST API for checking on task status or retrieving completed nuclei detection
     -   http://localhost:8080/results/docs — Interactive documentation for the above
     -   https://localhost:9443/results/docs — Same, but over https
--   http://localhost:8265/ — Ray's Dashboard
+-   http://localhost:8265/#/cluster — Ray's Dashboard
 -   gcs://localhost:6378/ — Ray "Global Control Server" port
 
 👉 **Note:** The `https` endpoints use a self-signed certificate.
